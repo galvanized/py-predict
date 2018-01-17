@@ -149,61 +149,55 @@ class SingleOutputModel():
                 'tprp':tprp,'tnrp':tnrp,'fprp':fprp,'fnrp':fnrp,'erp':erp,'lrp':lrp, 'rmsp':rmsp,
                 'c':c,'cedb':cedb}
 
-    def graph_one_one(self, xs, ys, out_path):
+    def graph_one_one_error(self, xs, ys, out_path, title=None):
         '''
-        Generates and writes a logarithmic scatter plot centered on 1,1 to file.
-        Returns result of calculate_one_one_error.
+        x is real values
+        y is predicted values
         '''
+        x_vals = xs
+        y_vals = self.run_multi(xs)
 
-        x_vals = [] # real values
-        y_vals = [] # predicted values
-
-        predicted_y = self.run_multi(xs)
-        # extract values from arrays
-        # TODO: make this less horribly inefficient
-        for outer_i in range(len(predicted_y)):
-            for inner_i in range(len(predicted_y[outer_i])):
-                x_vals.append(xs[outer_i][inner_i])
-                y_vals.append(predicted_y[outer_i][inner_i])
+        alpha = max(0.05, min(1, 100/(len(x_vals)+1)))
 
         plt.close()
+        plt.figure(num=1, figsize=(5, 5), dpi=300)
 
-        alpha = max(0.1, min(1, 10/(len(x_vals)+1)))
-        plt.plot(x_vals, y_vals, 'ro', alpha=alpha, linewidth=0.3, markersize=3)
-        plt.plot([.5,2],[.5,2], 'b')
+        plt.scatter(x_vals, y_vals, s=5, c='r', linewidths=0, alpha=alpha)
+        plt.plot([.5,2],[.5,2], 'b', alpha=0.5)
         plt.plot([1,1],[0.95,1.05],'b')
         plt.plot([0.95,1.05],[1,1],'b')
         plt.yscale('log')
         plt.xscale('log')
         plt.grid(True)
-        #plt.axis([0,2,0,2])
+        plt.axis([0.1,10,0.1,10])
         plt.xlabel('Real')
         plt.ylabel('Predicted')
 
-        e = None
 
-        if labels:
+        e = self.calculate_one_one_error(x_vals, y_vals)
 
-            e = calculate_error(x_vals, y_vals)
-            print(e)
+        lh = 3.1622777 # logarithmic half, 10^(1/2)
 
-            lh = 3.1622777 # logarithmic half, 10^(1/2)
+        textalpha = 0.5
 
-            plt.text(lh, lh, 'True Positive:\n{}%'.format(e['tprp']), ha='center')
-            plt.text(1/lh, lh, 'False Positive:\n{}%'.format(e['fprp']), ha='center')
-            plt.text(lh, 1/lh, 'False Negative:\n{}%'.format(e['fnrp']), ha='center')
-            plt.text(1/lh, 1/lh, 'True Negative:\n{}%'.format(e['tnrp']), ha='center')
+        plt.text(lh, lh, 'True Positive:\n{}%'.format(e['tprp']), ha='center', alpha=textalpha)
+        plt.text(1/lh, lh, 'False Positive:\n{}%'.format(e['fprp']), ha='center', alpha=textalpha)
+        plt.text(lh, 1/lh, 'False Negative:\n{}%'.format(e['fnrp']), ha='center', alpha=textalpha)
+        plt.text(1/lh, 1/lh, 'True Negative:\n{}%'.format(e['tnrp']), ha='center', alpha=textalpha)
 
-            plt.text(1, 7, 'Overestimate: {}%'.format(e['erp']), ha='center')
-            plt.text(1, 0.13, 'Underestimate: {}%'.format(e['lrp']), ha='center')
+        plt.text(1, 7, 'Overestimate: {}%'.format(e['erp']), ha='center', alpha=textalpha)
+        plt.text(1, 0.13, 'Underestimate: {}%'.format(e['lrp']), ha='center', alpha=textalpha)
 
-            title += '\nRMS={}% CatErr={}% cedB={}'.format(e['rmsp'],round(e['fprp']+e['fnrp'],3),e['cedb'])
+        if title == None:
+            title = self.name
+
+        if title:
+            title += '\n'
+
+        title += 'RMS={}% CatErr={}% cedB={}'.format(e['rmsp'],round(e['fprp']+e['fnrp'],3),e['cedb'])
 
         plt.title(title)
-
-        plt.savefig(out_path, dpi=300)
-
-        return e
+        plt.savefig(out_path)
 
 class InvalidInputDimensions(Exception):
     pass
