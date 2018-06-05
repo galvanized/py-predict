@@ -1,8 +1,11 @@
 import numpy as np
 from matplotlib import use
-use('tkagg') # select pyplot backend
+use('tkagg') # select pyplot backend: tkagg, GTKAgg
 import matplotlib.pyplot as plt
 import math
+from stocks import *
+from visualize import *
+from analysis import *
 
 class SingleOutputModel():
     def __init__(self):
@@ -34,14 +37,20 @@ class SingleOutputModel():
         # this function is defined by the model instance
 
     def run(self, x):
-        self.check_x_shape(x)
+        try:
+            self.check_x_shape(x)
+        except:
+            pass
+            # x shape not defined, ignore exception
         return self.eval(x)
 
     def run_multi(self, xs):
         return [self.run(x) for x in xs]
 
     def analysis(self, xs, ys, graph_path=None, csv_path=None):
-        pass
+        if graph_path:
+            self.graph_one_one_error(xs, ys, graph_path, self.name + ' analysis')
+
 
     def calculate_one_one_error(self, actual_list, predicted_list):
         '''
@@ -65,12 +74,12 @@ class SingleOutputModel():
 
 
                             /
-                excessive /
-                        /
+             overestimate /
+                 (e)    /
                       /
                     /
-                  /   lacking
-                /
+                  / underestimate
+                /        (l)
         '''
         rms = 0 # root mean squared error
 
@@ -155,7 +164,7 @@ class SingleOutputModel():
         y is predicted values
         '''
         x_vals = xs
-        y_vals = self.run_multi(xs)
+        y_vals = ys#self.run_multi(xs)
 
         alpha = max(0.05, min(1, 100/(len(x_vals)+1)))
 
@@ -199,5 +208,26 @@ class SingleOutputModel():
         plt.title(title)
         plt.savefig(out_path)
 
+    def simple_scatter_plot(self, xs, ys, out_path=None, alpha=0.5):
+        plt.close()
+        plt.figure(num=1, figsize=(5, 5), dpi=300)
+        #es = [z[1]-z[0] for z in zip(xs, ys)]
+
+        plt.scatter(xs, xs, s=1, c='k', linewidths=0, alpha=alpha)
+        plt.scatter(xs, ys, s=5, c='b', linewidths=0, alpha=alpha)
+        #plt.scatter(xs, es, s=5, c='r', linewidths=0, alpha=alpha)
+        if out_path:
+            plt.savefig(out_path)
+        else:
+            plt.show()
+
 class InvalidInputDimensions(Exception):
     pass
+
+if __name__ == '__main__':
+    db = Database('stockdata.sqlite')
+    db.init_db()
+    db.yahoo_to_db('stocks.txt')
+    graph_all()
+    graph_all_ytd()
+    html_deviance_report()

@@ -1,6 +1,7 @@
 from math import *
 from statistics import *
 from scipy.stats import norm
+import numpy as np
 
 def is_iter(v):
     # returns a boolean of whether v is iterable
@@ -59,8 +60,6 @@ def sma(v, n, f=mean):
         n = len(v)
     for i in range(1,len(v)+1):
         vals = v[max(0, i-n):i]
-        print(vals)
-        print(mean(vals), f(vals))
         out.append(f(vals))
     return out
 
@@ -130,6 +129,23 @@ def summa(v, c=0):
         out.append(out[-1]+val)
     return out
 
+def multipliers(v):
+    # exponential version of deltas
+    # WARNING: returns a length one less than the input
+    out = []
+    error = 0
+    for i in range(len(v)-1):
+        try:
+            out.append(v[i+1]/v[i])
+        except:
+            error += 1
+            if len(out) > 0:
+                out.append(out[-1])
+            else:
+                out.append(1)
+    if error:
+        print(error, 'bad values')
+    return out
 
 '''
     SCALAR FUNCTIONS
@@ -181,3 +197,19 @@ def twee(v, d, stdev=None, loc=None):
     expected = sum([w*e for w, e in zip(weights, efs)])/sum(weights)
 
     return v[-1] * exp(expected * d)
+
+def loghist(a, bin_count, var_mult):
+    '''
+    Returns the bin values and a list of bins boundaries
+    '''
+    lnm = log(var_mult)
+    bin_width = lnm*2/bin_count
+    bins = [exp(-lnm+x*bin_width) for x in range(bin_count+1)]
+    # NOTE: bins includes the upper limit (len(bins) = bin_count+1)
+    return np.histogram(a, bins, density=False)
+
+def percentiles_list(data, percentiles):
+    values = []
+    for p in percentiles:
+        values.append(np.percentile(data, p))
+    return values

@@ -1,1 +1,8 @@
 __pycache__
+*.png
+*.hd5
+*.pyc
+*.h5
+*.sqlite
+~*
+*.db
