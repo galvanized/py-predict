@@ -2,6 +2,7 @@ __pycache__
 *.png
 *.hd5
 *.pyc
+*.csv
 *.h5
 *.sqlite
 .~*
