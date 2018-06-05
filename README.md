@@ -7,6 +7,7 @@ Attempting to predict the stock market with Python.
 ### Dependencies
 - python3 (3.4+)
 - scipy
+- matplotlib
 - keras
 - tensorflow
 - scikit-learn
