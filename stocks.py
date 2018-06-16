@@ -388,6 +388,39 @@ class Database():
                 last_failures += 1
 
 
+    def sample_point(self, in_len, f_len, symbol, index, input_vectors=None, output_vectors=None):
+        sym_data = self.read_values(symbol)
+
+        closes = sym_data['close']
+
+        if len(closes)-f_len-in_len < 1:
+            # avoid breaking on stocks that are too short
+            print("Queue skip! Too short.")
+            return
+
+        samp_i = index
+
+        in_vals = closes[samp_i:samp_i+in_len]
+        out_vals = closes[samp_i:samp_i+in_len+f_len]
+        f_val = closes[samp_i+in_len+f_len]
+
+        vol_dat = sym_data['volume'][samp_i:samp_i+in_len]
+
+        if 0 in in_vals:
+            print("Zero found in closes for stock {}! Omitting.".format(symbols[target_i]))
+            return
+        if max(vol_dat) == 0:
+            print("Zero maximum volume for stock {}! Omitting.".format(symbols[target_i]))
+            return
+        denom = in_vals[-1]
+        last_normed = [x/denom for x in in_vals]
+        future_normed = [x/denom for x in out_vals]
+
+
+        return np.array([[last_normed],[future_normed]])
+
+
+
 
 class GeneratorFailure(Exception):
     pass

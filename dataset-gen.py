@@ -7,9 +7,12 @@ dataset-gen.py
 
 Routines for .npz creation for later training.
 
+
+todo: memmap support
 '''
 
 import random
+import math
 import numpy as np
 from stocks import Database
 
@@ -22,12 +25,46 @@ def overlap_detection(la, lb):
             return True
     return False
 
+def get_stock_index(symbols, lengths, index):
+    '''
+    Returns the symbol and corresponding index of the symbol.
+    '''
+    i_cumsum = 0
+    for i, l in enumerate(lengths):
+        if l + i_cumsum >= index:
+            return symbols[i], index - i_cumsum
+        else:
+            i_cumsum += l
+    raise NotEnoughDataError("Group index ({}) exceeds sum of indexes ({})".format(
+        index, sum(lengths)
+    ))
+
+def sample_point():
+    possible_vectors = ['open/close','new-norm close past','old-norm close past',
+               'high/low', 'max-norm volume', 'close mults',
+               'new-norm close future', 'new-norm close future and past']
+    matching_vectors = [open_close, last_normed, first_normed,
+                        high_low, max_norm_vol, close_mults,
+                        future_close, total_close]
+
+    possible_scalars = ['future close','mean','stdev']
+    matching_scalars = [future_close,mean,stdev]
+
+    selected_vectors = vectors
+
+    output_vectors = []
+
+    for v in selected_vectors:
+        output_vectors.append(matching_vectors[possible_vectors.index(v)])
+
+
 def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite',
-                 in_len = 100, f_len = 10, symbols = None,
+                 in_len = 100, f_len = 10, symbols = None, vectors = None,
                  train_samples = 10000, test_samples = 1000, validation_samples = 100):
 
     db = Database('stockdata.sqlite')
     db.init_db()
+
 
     if not symbols:
         symbols = self.list_symbols()
@@ -69,6 +106,27 @@ def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite'
 
     print('OVERLAP DETECTED!' if overlap else 'No overlap detected.')
 
+    # sample at indexes
+    train_pairs = []
+    ct = 0
+    numlen = int(math.ceil(math.log10(train_samples))) + 1
+    for i in train_indexes:
+        ct += 1
+        target_sym, target_index = get_stock_index(symbols,lengths, i)
+        print('selected {}/{}'.format(
+            str(ct).zfill(numlen),str(train_samples).zfill(numlen))
+              ,target_sym, target_index)
+        train_pairs.append(
+            db.sample_point(in_len = in_len, f_len = f_len,
+                            symbol=target_sym, index=target_index)
+            )
+
+    return train_pairs
+
+
+
 
 if __name__ == '__main__':
-    generate_npz(symbols = ['GOOGL'])
+    print(
+    generate_npz(symbols = ['^DJI','GOOG','MMM'], train_samples = 10)
+    )

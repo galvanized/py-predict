@@ -854,6 +854,6 @@ if __name__ == '__main__':
 
     m = ModelCavalierCactus()
 
-    m.train(train_stocks=None, epochs_per_batch=256, batches = 256, items_per_batch=2**12) #2**15
+    #m.train(train_stocks=None, epochs_per_batch=256, batches = 256, items_per_batch=2**12) #2**15
 
-    #m.plot(stocks=test_stocks, steps=4000)
+    m.plot(stocks=train_indexes, steps=4000)
