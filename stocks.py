@@ -407,10 +407,10 @@ class Database():
         vol_dat = sym_data['volume'][samp_i:samp_i+in_len]
 
         if 0 in in_vals:
-            print("Zero found in closes for stock {}! Omitting.".format(symbols[target_i]))
+            print("Zero found in closes for stock {}! Omitting.".format(symbol))
             return None
         if max(vol_dat) == 0:
-            print("Zero maximum volume for stock {}! Omitting.".format(symbols[target_i]))
+            print("Zero maximum volume for stock {}! Omitting.".format(symbol))
             return None
         denom = in_vals[-1]
         last_normed = [x/denom for x in in_vals]

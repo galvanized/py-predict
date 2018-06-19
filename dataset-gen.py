@@ -60,7 +60,7 @@ def sample_point():
 
 def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite',
                  in_len = 100, f_len = 10, symbols = None, vectors = None,
-                 train_samples = 10000, test_samples = 1000, validation_samples = 100):
+                 train_samples = 1, test_samples = 1, validation_samples = 1):
 
     db = Database('stockdata.sqlite')
     db.init_db()
@@ -90,64 +90,64 @@ def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite'
 
     random.shuffle(indexes)
 
-    # list of 'edge' indexes: min and max for slices
-    edge_i = [0, train_samples]
-    edge_i.append(edge_i[-1] + test_samples)
-    edge_i.append(edge_i[-1] + validation_samples)
-
-    train_indexes = indexes[edge_i[0]:edge_i[1]]
-    test_indexes = indexes[edge_i[1]:edge_i[2]]
-    verification_indexes = indexes[edge_i[2]:edge_i[3]]
-    extra_indexes = indexes[edge_i[3]:] #available for after errors
-
-    next_extra_index = 0
-
-    # todo: switch these to a test
-    print(len(train_indexes), len(test_indexes), len(verification_indexes))
-
-    overlap = overlap_detection(train_indexes,test_indexes) +\
-            overlap_detection(verification_indexes,test_indexes) +\
-            overlap_detection(verification_indexes,train_indexes)
-
-    print('OVERLAP DETECTED!' if overlap else 'No overlap detected.')
-
-    # sample at indexes
+    validation_pairs = []
+    test_pairs = []
     train_pairs = []
-    ct = 0
-    numlen = int(math.ceil(math.log10(train_samples))) + 1
-    for i in train_indexes:
+
+    ct = 0 # used for progress indication
+    numlen = int(math.ceil(math.log10(needed_samples))) + 1
+
+    current_index = 0
+
+    for i in range(needed_samples + 1):
         ct += 1
 
-        target_sym, target_index = get_stock_index(symbols,lengths, i)
-        print('selected {}/{}'.format(
-            str(ct).zfill(numlen),str(train_samples).zfill(numlen))
-              ,target_sym, target_index)
+        pt = None
 
-        pt = db.sample_point(in_len = in_len, f_len = f_len,
-                        symbol=target_sym, index=target_index)
+        while type(pt) == type(None):
 
-        while type(pt) == type(None): #sample rejected
-            try:
-                new_i = extra_indexes[next_extra_index]
-            except:
-                raise NotEnoughDataError("Extra samples expended. Too many holes in data!")
-            next_extra_index += 1
-
-            target_sym, target_index = get_stock_index(symbols,lengths, new_i)
+            target_sym, target_index = get_stock_index(symbols,lengths, indexes[current_index])
             print('selected {}/{}'.format(
-                str(ct).zfill(numlen),str(train_samples).zfill(numlen))
+                str(ct).zfill(numlen),str(needed_samples).zfill(numlen))
                   ,target_sym, target_index)
 
             pt = db.sample_point(in_len = in_len, f_len = f_len,
                             symbol=target_sym, index=target_index)
 
+        current_index += 1
 
-        train_pairs.append(pt)
+        validation_f = len(validation_pairs) / validation_samples
+        test_f = len(test_pairs) / test_samples
+        train_f = len(train_pairs) / train_samples
 
-    np.savez_compressed(create_path, train=train_pairs)
+        fs = [validation_f, test_f, train_f]
+        fs_min = min(fs)
+        i_min = fs.index(fs_min)
+
+        if i_min == 0:
+            validation_pairs.append(pt)
+        elif i_min == 1:
+            test_pairs.append(pt)
+        elif i_min == 2:
+            train_pairs.append(pt)
+
+        if min(fs) >= 1:
+            # enough samples! we're done here.
+            print("All samples collected!")
+            break
+
+        print('val  :',len(validation_pairs),
+              'test :',len(test_pairs),
+              'train:',len(train_pairs))
+
+
+
+
+
+    np.savez_compressed(create_path, train=train_pairs, test=test_pairs, validation=validation_pairs)
 
 
 
 
 if __name__ == '__main__':
-    generate_npz(symbols = None, train_samples = 10000)
+    generate_npz(symbols = None, train_samples = 10000, test_samples = 1000, validation_samples = 200)
