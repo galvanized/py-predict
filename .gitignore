@@ -10,3 +10,5 @@ __pycache__
 *.7z
 *.zip
 *.npz
+*.htm
+*.html
