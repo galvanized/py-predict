@@ -9,3 +9,4 @@ __pycache__
 *.db
 *.7z
 *.zip
+*.npz
