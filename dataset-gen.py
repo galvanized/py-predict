@@ -67,7 +67,7 @@ def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite'
 
 
     if not symbols:
-        symbols = self.list_symbols()
+        symbols = db.list_symbols()
 
     lengths = []
 
@@ -84,6 +84,8 @@ def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite'
             lengths_sum, needed_samples
         ))
 
+    print(lengths_sum, 'points available')
+
     indexes = list(range(lengths_sum))
 
     random.shuffle(indexes)
@@ -96,6 +98,9 @@ def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite'
     train_indexes = indexes[edge_i[0]:edge_i[1]]
     test_indexes = indexes[edge_i[1]:edge_i[2]]
     verification_indexes = indexes[edge_i[2]:edge_i[3]]
+    extra_indexes = indexes[edge_i[3]:] #available for after errors
+
+    next_extra_index = 0
 
     # todo: switch these to a test
     print(len(train_indexes), len(test_indexes), len(verification_indexes))
@@ -112,21 +117,37 @@ def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite'
     numlen = int(math.ceil(math.log10(train_samples))) + 1
     for i in train_indexes:
         ct += 1
+
         target_sym, target_index = get_stock_index(symbols,lengths, i)
         print('selected {}/{}'.format(
             str(ct).zfill(numlen),str(train_samples).zfill(numlen))
               ,target_sym, target_index)
-        train_pairs.append(
-            db.sample_point(in_len = in_len, f_len = f_len,
-                            symbol=target_sym, index=target_index)
-            )
 
-    return train_pairs
+        pt = db.sample_point(in_len = in_len, f_len = f_len,
+                        symbol=target_sym, index=target_index)
+
+        while type(pt) == type(None): #sample rejected
+            try:
+                new_i = extra_indexes[next_extra_index]
+            except:
+                raise NotEnoughDataError("Extra samples expended. Too many holes in data!")
+            next_extra_index += 1
+
+            target_sym, target_index = get_stock_index(symbols,lengths, new_i)
+            print('selected {}/{}'.format(
+                str(ct).zfill(numlen),str(train_samples).zfill(numlen))
+                  ,target_sym, target_index)
+
+            pt = db.sample_point(in_len = in_len, f_len = f_len,
+                            symbol=target_sym, index=target_index)
+
+
+        train_pairs.append(pt)
+
+    np.savez_compressed(create_path, train=train_pairs)
 
 
 
 
 if __name__ == '__main__':
-    print(
-    generate_npz(symbols = ['^DJI','GOOG','MMM'], train_samples = 10)
-    )
+    generate_npz(symbols = None, train_samples = 10000)

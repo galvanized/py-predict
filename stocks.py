@@ -408,10 +408,10 @@ class Database():
 
         if 0 in in_vals:
             print("Zero found in closes for stock {}! Omitting.".format(symbols[target_i]))
-            return
+            return None
         if max(vol_dat) == 0:
             print("Zero maximum volume for stock {}! Omitting.".format(symbols[target_i]))
-            return
+            return None
         denom = in_vals[-1]
         last_normed = [x/denom for x in in_vals]
         future_normed = [x/denom for x in out_vals]

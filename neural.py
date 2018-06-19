@@ -844,6 +844,90 @@ class ModelCavalierCactus(SingleOutputModel):
         self.graph_one_one_error(ys.flatten(), ps[1].flatten(), self.name + '.png')
 
 
+class ModelDorkyDandelion(SingleOutputModel):
+    '''
+    DorkyDandelion
+
+    An autoencoder that also attempts to encode the future.
+    '''
+
+    def __init__(self, path='DorkyDandelion.hd5', ignore_existing=False,
+                 train_stocks = ['^DJI','^GSPC']):
+
+        self.name = 'DorkyDandelion'
+        self.path = path
+        self.input_length = 100
+        self.forecast_length = 20
+        self.input_layers = 1
+        self.output_layers = 1
+        self.x_shape = (self.input_layers, self.input_length)
+        self.y_shape = (self.output_layers, self.input_length + self.forecast_length)
+        self.train_stocks = None
+
+        if ignore_existing or not os.path.isfile(path): # if file doesn't exist
+
+            i0 = Input(shape=self.x_shape, name='input_layer')
+            bn = BatchNorm(i0)
+            c0 = concatenate(i0, bn)
+            l0 = Reshape(self.x_shape[::-1])(c0)
+            f0 = Flatten()(c0)
+
+            block0 = MaxPooling1D()(Conv1D(32, 5, strides=1, activation='relu', padding='same', name='c0')(l0))
+            block1 = MaxPooling1D()(Conv1D(32, 5, strides=1, activation='relu', padding='same', name='c1')(block0))
+            block2 = MaxPooling1D()(Conv1D(8, 3, strides=1, activation='relu', padding='same', name='c2')(block1))
+
+            bridge0 = concatenate([f0, Flatten()(block0)])
+            mlp0 = Dense(1024, activation='relu')(bridge0)
+
+            bridge1 = concatenate([mlp0, Flatten()(block1)])
+            mlp1 = Dense(256, activation='relu')(bridge1)
+
+            bridge2 = concatenate([mlp1, Flatten()(block2)])
+            mlp2 = Dense(16, activation='relu')(bridge2)
+
+            codec = block2
+            codem = mlp2
+
+            '''
+            block3 = MaxPooling1D()(Conv1D(32, 5, dilation_rate=3, activation='relu', padding='causal', name='c3')(codec))
+            block4 = MaxPooling1D()(Conv1D(32, 5, dilation_rate=3, activation='relu', padding='causal', name='c4')(block3))
+            block5 = MaxPooling1D()(Conv1D(32, 5, dilation_rate=3, activation='relu', padding='causal', name='c5')(block4))
+            print(self.x_shape)
+            print([x.shape for x in [block0,block1,block2,block3,block4,block5]])
+            '''
+
+            us0 = Dense(256, activation='relu')(Flatten()(codec))
+            us1 = Dense(2048, activation='relu')(us0)
+            us2 = Dense(np.prod(self.y_shape), activation='relu')(us1)
+            print(self.y_shape, np.prod(self.y_shape), us2.shape)
+
+            o0 = Reshape(target_shape=self.y_shape, name='autoencoder_output')(us2)
+
+            self.model = Model(inputs=i0, outputs=o0)
+            self.model.compile(loss=['mean_squared_logarithmic_error','mean_squared_logarithmic_error'],
+                          optimizer='adam', #adam #RMSprop #adadelta
+                          metrics=['mse','mean_absolute_percentage_error'])
+
+
+        else:
+            self.import_model_from_file(path)
+
+    def import_model_from_file(self, path):
+        self.model = models.load_model(path)
+
+    def train(self, epochs=10):
+
+        train_x, train_y = np.load('dataset.npz')['train']
+
+        self.model.fit(xs, [xs, ys], epochs=epochs,
+                           callbacks = [tb_callback, nan_callback])
+
+        self.model.save(self.path)
+
+    def eval(self, x):
+        return self.model.predict(x)
+
+
 
 if __name__ == '__main__':
     train_indexes = ['^DJI','^GSPC']
