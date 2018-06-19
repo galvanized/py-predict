@@ -114,7 +114,8 @@ def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite'
             pt = db.sample_point(in_len = in_len, f_len = f_len,
                             symbol=target_sym, index=target_index)
 
-        current_index += 1
+            current_index += 1
+
 
         validation_f = len(validation_pairs) / validation_samples
         test_f = len(test_pairs) / test_samples
