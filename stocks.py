@@ -109,7 +109,7 @@ class Database():
         i = 0
         for stock in stocks:
             i += 1
-            time.sleep(random.triangular(0,10,0.3)) # courtsey delay
+            time.sleep(random.triangular(0,10,0.3)) # courtesy delay
             r = s.get(url.format(stock, crumb), cookies=cookies)
             if r.status_code != 200:
                 print("Got code {} on stock {}".format(r.status_code, stock))
@@ -413,11 +413,10 @@ class Database():
             print("Zero maximum volume for stock {}! Omitting.".format(symbol))
             return None
         denom = in_vals[-1]
-        last_normed = [x/denom for x in in_vals]
+        last_normed = [x/denom for x in in_vals] + [0]*f_len
         future_normed = [x/denom for x in out_vals]
 
-
-        return np.array([[last_normed],[future_normed]])
+        return [[last_normed],[future_normed]]
 
 
 

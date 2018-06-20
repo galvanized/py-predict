@@ -111,8 +111,11 @@ def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite'
                 str(ct).zfill(numlen),str(needed_samples).zfill(numlen))
                   ,target_sym, target_index)
 
-            pt = db.sample_point(in_len = in_len, f_len = f_len,
-                            symbol=target_sym, index=target_index)
+            try:
+                pt = db.sample_point(in_len = in_len, f_len = f_len,
+                                symbol=target_sym, index=target_index)
+            except Exception as e:
+                print("SAMPLE FAILURE!", e)
 
             current_index += 1
 
@@ -151,4 +154,4 @@ def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite'
 
 
 if __name__ == '__main__':
-    generate_npz(symbols = None, train_samples = 10000, test_samples = 1000, validation_samples = 200)
+    generate_npz(symbols = None, train_samples = 30000, test_samples = 100, validation_samples = 100)
