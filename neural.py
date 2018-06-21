@@ -875,7 +875,7 @@ class ModelDorkyDandelion(SingleOutputModel):
             ds2 = Dense(64, activation='relu')(ds1)
             ds3 = Dense(32, activation='relu')(ds2)
             ds4 = Dense(16, activation='relu')(ds3)
-            ds5 = Dense(8, activation='relu')(ds4)
+            ds5 = Dense(16, activation='relu')(ds4)
 
             codelayer = ds5
 
@@ -929,4 +929,4 @@ class ModelDorkyDandelion(SingleOutputModel):
 if __name__ == '__main__':
     m = ModelDorkyDandelion()
 
-    m.train(epochs = 10)
+    m.train(epochs = 10000000)
