@@ -864,7 +864,8 @@ class ModelDorkyDandelion(SingleOutputModel):
         self.x_shape = (self.input_length + self.forecast_length,)
         self.y_shape = (self.input_length + self.forecast_length,)
 
-        if ignore_existing or not os.path.isfile(path): # if file doesn't exist
+        if ignore_existing or not os.path.isfile(self.save_path) \
+            and not os.path.isfile(self.best_path): # if file doesn't exist
 
             i0 = Input(shape=self.x_shape, name='input_layer')
             bn = BatchNormalization()(i0)
@@ -891,13 +892,13 @@ class ModelDorkyDandelion(SingleOutputModel):
             o0 = Reshape(target_shape=self.y_shape, name='autoencoder_output')(out0)
 
             self.model = Model(inputs=i0, outputs=o0)
-            self.model.compile(loss='mean_squared_logarithmic_error',
+            self.model.compile(loss='mean_absolute_percentage_error',
                           optimizer='adam', #adam #RMSprop #adadelta
-                          metrics=['mse','mean_absolute_percentage_error'])
+                          metrics=['mse','mean_squared_logarithmic_error'])
 
         else:
             self.import_model_from_file(
-                best_path if os.path.isfile(self.best_path)
+                self.best_path if os.path.isfile(self.best_path)
                 else self.save_path
                 )
 
@@ -928,23 +929,10 @@ class ModelDorkyDandelion(SingleOutputModel):
         self.model = models.load_model(path)
 
     def train(self, epochs=10, loadfrom='dataset.npz'):
+        d = sets_from_npz(loadfrom)
 
-        train_pairs = np.load(loadfrom)['train']
-        print(train_pairs.shape)
-
-        xs = []
-        ys = []
-
-        for p in train_pairs:
-            xnew, ynew = p
-            xs.append(xnew[0])
-            ys.append(ynew[0])
-
-        del train_pairs
-        xs = np.array(xs)
-        ys = np.array(ys)
-
-        #print(xs[0], ys[0])
+        xs = d['train_x']
+        ys = d['train_y']
 
         tb_callback = keras.callbacks.TensorBoard(log_dir='/tmp/sp-tb', write_graph=False)
         nan_callback = keras.callbacks.TerminateOnNaN()
@@ -953,35 +941,51 @@ class ModelDorkyDandelion(SingleOutputModel):
 
 
         self.model.fit(xs, ys, epochs=epochs,
-                           callbacks = [tb_callback, nan_callback, checkpoint_callback])
+                    callbacks = [tb_callback, nan_callback, checkpoint_callback],
+                    validation_data = (d['test_x'],d['test_y']))
 
         self.model.save(self.save_path)
 
     def eval(self, x):
         return self.model.predict(x)
 
+def sets_from_npz(path):
+    d = np.load(path)
+
+    sets = ['train','test','validation']
+
+    out_dict = {}
+
+    for s in sets:
+        pairs = d[s]
+
+        xs = []
+        ys = []
+
+        for p in pairs:
+            xnew, ynew = p
+            xs.append(xnew[0])
+            ys.append(ynew[0])
+
+        out_dict[s+'_x'] = np.array(xs)
+        out_dict[s+'_y'] = np.array(ys)
+
+    return out_dict
+
+
 
 
 if __name__ == '__main__':
     m = ModelDorkyDandelion()
 
-    m.train(epochs=10000, loadfrom='dataset100k.npz')
+    m.train(epochs=10000, loadfrom='dataset.npz')
 
-    train_pairs = np.load('dataset.npz')['train']
-    print(train_pairs.shape)
+    '''
+    # Code layer activation extraction demonstration
 
-    xs = []
-    ys = []
-
-    for p in train_pairs:
-        xnew, ynew = p
-        xs.append(xnew[0])
-        ys.append(ynew[0])
-
-    del train_pairs
-    xs = np.array(xs)
-    ys = np.array(ys)
-
-    print('xs shape', xs.shape)
+    d = sets_from_npz('dataset.npz')
+    xs = d['train_x']
+    ys = d['train_y']
 
     print(m.get_code_activations(xs[:10]))
+    '''
