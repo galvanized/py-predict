@@ -855,7 +855,8 @@ class ModelDorkyDandelion(SingleOutputModel):
                  train_stocks = ['^DJI','^GSPC']):
 
         self.name = 'DorkyDandelion'
-        self.path = path
+        self.save_path = path
+        self.best_path = path + '.best'
         self.input_length = 100
         self.forecast_length = 10
         self.input_layers = 1
@@ -895,7 +896,10 @@ class ModelDorkyDandelion(SingleOutputModel):
                           metrics=['mse','mean_absolute_percentage_error'])
 
         else:
-            self.import_model_from_file(path)
+            self.import_model_from_file(
+                best_path if os.path.isfile(self.best_path)
+                else self.save_path
+                )
 
     def get_code_activations(self, xs):
         layers = self.model.layers
@@ -923,7 +927,7 @@ class ModelDorkyDandelion(SingleOutputModel):
     def import_model_from_file(self, path):
         self.model = models.load_model(path)
 
-    def train(self, epochs_per_save=10, loadfrom='dataset.npz', saves=10):
+    def train(self, epochs=10, loadfrom='dataset.npz'):
 
         train_pairs = np.load(loadfrom)['train']
         print(train_pairs.shape)
@@ -944,13 +948,14 @@ class ModelDorkyDandelion(SingleOutputModel):
 
         tb_callback = keras.callbacks.TensorBoard(log_dir='/tmp/sp-tb', write_graph=False)
         nan_callback = keras.callbacks.TerminateOnNaN()
+        checkpoint_callback = keras.callbacks.ModelCheckpoint(
+            self.best_path, monitor='loss', save_best_only=True)
 
-        for r in range(saves):
 
-            self.model.fit(xs, ys, epochs=epochs_per_save,
-                               callbacks = [tb_callback, nan_callback])
+        self.model.fit(xs, ys, epochs=epochs,
+                           callbacks = [tb_callback, nan_callback, checkpoint_callback])
 
-            self.model.save(self.path)
+        self.model.save(self.save_path)
 
     def eval(self, x):
         return self.model.predict(x)
@@ -960,7 +965,7 @@ class ModelDorkyDandelion(SingleOutputModel):
 if __name__ == '__main__':
     m = ModelDorkyDandelion()
 
-    m.train(epochs_per_save = 1, saves=10000, loadfrom='dataset100k.npz')
+    m.train(epochs=10000, loadfrom='dataset100k.npz')
 
     train_pairs = np.load('dataset.npz')['train']
     print(train_pairs.shape)
