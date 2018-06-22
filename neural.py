@@ -918,7 +918,7 @@ class ModelDorkyDandelion(SingleOutputModel):
 
         code_model = Model(inputs=i0, outputs=codelayer)
 
-        return [code_model.predict(x) for x in xs]
+        return code_model.predict(xs)
 
     def import_model_from_file(self, path):
         self.model = models.load_model(path)
@@ -945,15 +945,9 @@ class ModelDorkyDandelion(SingleOutputModel):
         tb_callback = keras.callbacks.TensorBoard(log_dir='/tmp/sp-tb', write_graph=False)
         nan_callback = keras.callbacks.TerminateOnNaN()
 
-<<<<<<< HEAD
         for r in range(saves):
 
             self.model.fit(xs, ys, epochs=epochs_per_save,
-=======
-        for r in range(repeats):
-
-            self.model.fit(xs, ys, epochs=epochs,
->>>>>>> a1d938b9447c6780510e65f94efd4dea034498df
                                callbacks = [tb_callback, nan_callback])
 
             self.model.save(self.path)
@@ -966,11 +960,7 @@ class ModelDorkyDandelion(SingleOutputModel):
 if __name__ == '__main__':
     m = ModelDorkyDandelion()
 
-<<<<<<< HEAD
-    m.train(epochs_per_save = 1, saves=1000, loadfrom='dataset.npz')
-=======
-    m.train(epochs_per_save = 1, saves=1000, loadfrom='dataset100k.npz')
->>>>>>> a1d938b9447c6780510e65f94efd4dea034498df
+    m.train(epochs_per_save = 1, saves=10000, loadfrom='dataset100k.npz')
 
     train_pairs = np.load('dataset.npz')['train']
     print(train_pairs.shape)
@@ -983,4 +973,10 @@ if __name__ == '__main__':
         xs.append(xnew[0])
         ys.append(ynew[0])
 
-    print(m.get_code_activations(np.array(xs[:10])))
+    del train_pairs
+    xs = np.array(xs)
+    ys = np.array(ys)
+
+    print('xs shape', xs.shape)
+
+    print(m.get_code_activations(xs[:10]))
