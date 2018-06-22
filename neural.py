@@ -870,20 +870,20 @@ class ModelDorkyDandelion(SingleOutputModel):
             c0 = Concatenate()([i0, bn])
             f0 = c0#Flatten()(c0)
 
-            ds0 = Dense(256, activation='relu')(f0)
-            ds1 = Dense(128, activation='relu')(ds0)
-            ds2 = Dense(64, activation='relu')(ds1)
-            ds3 = Dense(32, activation='relu')(ds2)
-            ds4 = Dense(16, activation='relu')(ds3)
-            ds5 = Dense(16, activation='relu')(ds4)
+            ds0 = Dense(1000, activation='relu')(f0)
+            ds1 = Dense(1000, activation='relu')(ds0)
+            ds2 = Dense(1000, activation='relu')(ds1)
+            ds3 = Dense(100, activation='relu')(ds2)
+            ds4 = Dense(100, activation='relu')(ds3)
+            ds5 = Dense(32, activation='relu')(ds4)
 
             codelayer = ds5
 
-            us0 = Dense(16, activation='relu')(codelayer)
-            us1 = Dense(32, activation='relu')(us0)
-            us2 = Dense(64, activation='relu')(us1)
-            us3 = Dense(128, activation='relu')(us2)
-            us4 = Dense(256, activation='relu')(us3)
+            us0 = Dense(100, activation='relu')(codelayer)
+            us1 = Dense(100, activation='relu')(us0)
+            us2 = Dense(1000, activation='relu')(us1)
+            us3 = Dense(1000, activation='relu')(us2)
+            us4 = Dense(1000, activation='relu')(us3)
 
             out0 = Dense(np.prod(self.y_shape), activation='relu')(us4)
 
@@ -897,10 +897,33 @@ class ModelDorkyDandelion(SingleOutputModel):
         else:
             self.import_model_from_file(path)
 
+    def get_code_activations(self, xs):
+        layers = self.model.layers
+        w = [l.get_weights() for l in layers]
+
+        i0 = Input(shape=self.x_shape, name='input_layer')
+        bn = BatchNormalization()(i0)
+        c0 = Concatenate()([i0, bn])
+        f0 = c0#Flatten()(c0)
+
+        n = 3
+        ds0 = Dense(1000, activation='relu', weights=w[n])(f0)
+        ds1 = Dense(1000, activation='relu', weights=w[n+1])(ds0)
+        ds2 = Dense(1000, activation='relu', weights=w[n+2])(ds1)
+        ds3 = Dense(100, activation='relu', weights = w[n+3])(ds2)
+        ds4 = Dense(100, activation='relu', weights = w[n+4])(ds3)
+        ds5 = Dense(32, activation='relu', weights=w[n+5])(ds4)
+
+        codelayer = ds5
+
+        code_model = Model(inputs=i0, outputs=codelayer)
+
+        return [code_model.predict(x) for x in xs]
+
     def import_model_from_file(self, path):
         self.model = models.load_model(path)
 
-    def train(self, epochs=10, loadfrom='dataset.npz'):
+    def train(self, epochs_per_save=10, loadfrom='dataset.npz', saves=10):
 
         train_pairs = np.load(loadfrom)['train']
         print(train_pairs.shape)
@@ -909,17 +932,25 @@ class ModelDorkyDandelion(SingleOutputModel):
         ys = []
 
         for p in train_pairs:
-            xs, ys = p
+            xnew, ynew = p
+            xs.append(xnew[0])
+            ys.append(ynew[0])
+
+        del train_pairs
+        xs = np.array(xs)
+        ys = np.array(ys)
 
         #print(xs[0], ys[0])
 
         tb_callback = keras.callbacks.TensorBoard(log_dir='/tmp/sp-tb', write_graph=False)
         nan_callback = keras.callbacks.TerminateOnNaN()
 
-        self.model.fit(xs, ys, epochs=epochs,
-                           callbacks = [tb_callback, nan_callback])
+        for r in range(saves):
 
-        self.model.save(self.path)
+            self.model.fit(xs, ys, epochs=epochs_per_save,
+                               callbacks = [tb_callback, nan_callback])
+
+            self.model.save(self.path)
 
     def eval(self, x):
         return self.model.predict(x)
@@ -929,4 +960,17 @@ class ModelDorkyDandelion(SingleOutputModel):
 if __name__ == '__main__':
     m = ModelDorkyDandelion()
 
-    m.train(epochs = 10000000)
+    m.train(epochs_per_save = 1, saves=1000, loadfrom='dataset.npz')
+
+    train_pairs = np.load('dataset.npz')['train']
+    print(train_pairs.shape)
+
+    xs = []
+    ys = []
+
+    for p in train_pairs:
+        xnew, ynew = p
+        xs.append(xnew[0])
+        ys.append(ynew[0])
+
+    print(m.get_code_activations(np.array(xs[:10])))
