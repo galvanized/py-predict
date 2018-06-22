@@ -945,9 +945,15 @@ class ModelDorkyDandelion(SingleOutputModel):
         tb_callback = keras.callbacks.TensorBoard(log_dir='/tmp/sp-tb', write_graph=False)
         nan_callback = keras.callbacks.TerminateOnNaN()
 
+<<<<<<< HEAD
         for r in range(saves):
 
             self.model.fit(xs, ys, epochs=epochs_per_save,
+=======
+        for r in range(repeats):
+
+            self.model.fit(xs, ys, epochs=epochs,
+>>>>>>> a1d938b9447c6780510e65f94efd4dea034498df
                                callbacks = [tb_callback, nan_callback])
 
             self.model.save(self.path)
@@ -960,7 +966,11 @@ class ModelDorkyDandelion(SingleOutputModel):
 if __name__ == '__main__':
     m = ModelDorkyDandelion()
 
+<<<<<<< HEAD
     m.train(epochs_per_save = 1, saves=1000, loadfrom='dataset.npz')
+=======
+    m.train(epochs_per_save = 1, saves=1000, loadfrom='dataset100k.npz')
+>>>>>>> a1d938b9447c6780510e65f94efd4dea034498df
 
     train_pairs = np.load('dataset.npz')['train']
     print(train_pairs.shape)
