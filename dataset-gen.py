@@ -154,4 +154,6 @@ def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite'
 
 
 if __name__ == '__main__':
-    generate_npz(symbols = None, create_path='dataset100k.npz', train_samples = 100000, test_samples = 5000, validation_samples = 1000)
+    generate_npz(symbols = None, create_path='dataset100k-300in-20out.npz',
+                 train_samples = 100000, test_samples = 5000, validation_samples = 1000,
+                 in_len = 300, f_len = 20)
