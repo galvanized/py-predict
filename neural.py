@@ -901,6 +901,9 @@ class ModelDorkyDandelion(SingleOutputModel):
                 self.best_path if os.path.isfile(self.best_path)
                 else self.save_path
                 )
+            self.model.compile(loss='mean_squared_logarithmic_error',
+                          optimizer='adam', #adam #RMSprop #adadelta
+                          metrics=['mse','mean_absolute_percentage_error'])
 
     def get_code_activations(self, xs):
         layers = self.model.layers
@@ -978,7 +981,7 @@ def sets_from_npz(path):
 if __name__ == '__main__':
     m = ModelDorkyDandelion()
 
-    m.train(epochs=10000, loadfrom='dataset.npz')
+    m.train(epochs=100, loadfrom='dataset.npz')
 
     '''
     # Code layer activation extraction demonstration
