@@ -186,7 +186,7 @@ def html_deviance_report(outfile='report.html', ranges=[7,30,90,365], input_leng
         print(sym)
         htmlout += '<tr><th>{}</th>'.format(sym)
         for r in ranges:
-            filename = 'reportimages/{}{}.png'.format(sym, r)
+            filename = 'graphs/report/{}{}.png'.format(sym, r)
             datalist = db.n_day_changes(sym, r, input_length)
             if datalist:
                 try:
@@ -209,4 +209,4 @@ if __name__ == '__main__':
            'PYPL','BBD','FLN','FHK','COMT','MTBC','SQ','ANET','ZNH','BA']
     combo = own+watch
     combo.sort()
-    html_deviance_report(outfile='watch.htm',ranges=[90],syms=combo)
+    html_deviance_report(outfile='watch.htm',ranges=[30,90],syms=combo)

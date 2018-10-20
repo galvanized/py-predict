@@ -1,6 +1,7 @@
 from main import *
 from stocks import *
 import numpy as np
+
 import keras
 from keras import models
 from keras.models import Sequential
@@ -8,6 +9,10 @@ from keras.layers import *
 from keras import backend as K
 from keras.engine.topology import Layer
 from keras.models import Model
+
+from hyperopt import Trials, STATUS_OK, tpe, rand
+from hyperas import optim
+from hyperas.distributions import choice, uniform
 
 import os.path
 
@@ -952,6 +957,101 @@ class ModelDorkyDandelion(SingleOutputModel):
     def eval(self, x):
         return self.model.predict(x)
 
+
+class ModelElasticElk(SingleOutputModel):
+    '''
+    ElasticElk
+
+    Future autoencoder to be optimized with hyperas
+    '''
+
+    def __init__(self, path='models/ElasticElk.hd5', ignore_existing=False,
+    train_stocks = ['^DJI','^GSPC']):
+
+        self.name = 'ElasticElk'
+        self.save_path = path
+        self.best_path = path + '.best'
+        self.input_length = 100
+        self.forecast_length = 10
+        self.input_layers = 1
+        self.output_layers = 1
+        self.x_shape = (self.input_length + self.forecast_length,)
+        self.y_shape = (self.input_length + self.forecast_length,)
+
+    def model(self):
+        i0 = Input(shape=self.x_shape, name='input_layer')
+        bn = BatchNormalization()(i0)
+        c0 = Concatenate()([i0, bn])
+        f0 = c0#Flatten()(c0)
+
+        ds0 = Dense(1000, activation='relu')(f0)
+        ds1 = Dense(1000, activation='relu')(ds0)
+        ds2 = Dense(1000, activation='relu')(ds1)
+        ds3 = Dense({{choice([512,256,128])}}, activation='relu')(ds2)
+        ds4 = Dense({{choice([512,256,128])}}, activation='relu')(ds3)
+        ds5 = Dense({{choice([512,256,128,64,32,16])}}, activation='relu')(ds4)
+
+        codelayer = ds5
+
+        us0 = Dense({{choice([512,256,128])}}, activation='relu')(codelayer)
+        us1 = Dense({{choice([512,256,128])}}, activation='relu')(us0)
+        us2 = Dense(1000, activation='relu')(us1)
+        us3 = Dense(1000, activation='relu')(us2)
+        us4 = Dense(1000, activation='relu')(us3)
+
+        out0 = Dense(np.prod(self.y_shape), activation='relu')(us4)
+
+        o0 = Reshape(target_shape=self.y_shape, name='autoencoder_output')(out0)
+
+        model = Model(inputs=i0, outputs=o0)
+        model.compile(loss='mean_absolute_percentage_error',
+        optimizer='adam', #adam #RMSprop #adadelta
+        metrics=['mse','mean_squared_logarithmic_error'])
+
+        self.train(model)
+
+        d = sets_from_npz('dataset.npz')
+
+        xs = d['train_x']
+        ys = d['train_y']
+
+        tb_callback = keras.callbacks.TensorBoard(log_dir='/tmp/sp-tb', write_graph=False)
+        nan_callback = keras.callbacks.TerminateOnNaN()
+        checkpoint_callback = keras.callbacks.ModelCheckpoint(
+        self.best_path, monitor='loss', save_best_only=True)
+
+
+        model.fit(xs, ys, epochs=epochs,
+        callbacks = [tb_callback, nan_callback, checkpoint_callback],
+        validation_data = (d['test_x'],d['test_y']))
+
+        score, acc = self.model.predict(xs, ys)
+
+        print('Test score:', score)
+        print('Test accuracy:', acc)
+        return {'loss': -acc, 'status': STATUS_OK, 'model': model}
+
+    def data(self):
+        d = sets_from_npz(loadfrom)
+
+        xs = d['train_x']
+        ys = d['train_y']
+
+        return xs, ys
+
+    def eval(self, x):
+        return self.model.predict(x)
+
+    def optimize(self):
+        best_run, best_model = optim.minimize(model=self.model,
+                                              data=self.data,
+                                              algo=tpe.suggest,
+                                              max_evals=10,
+                                              trials=Trials())
+        print(best_run)
+
+
+
 def sets_from_npz(path):
     d = np.load(path)
 
@@ -979,9 +1079,9 @@ def sets_from_npz(path):
 
 
 if __name__ == '__main__':
-    m = ModelDorkyDandelion()
+    m = ModelElasticElk()
 
-    m.train(epochs=100, loadfrom='dataset.npz')
+    m.optimize()
 
     '''
     # Code layer activation extraction demonstration
