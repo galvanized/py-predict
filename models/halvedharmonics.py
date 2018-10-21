@@ -1,15 +1,8 @@
 '''
-GooeyGumdrop
-    broad archetectural changes possible
-
-
-with epochs = 50; max_evals = 50:
-    Test losses: [0.6130363464355468, 0.06659336298704148, 0.09674442231655121, 0.05926854014396667, 0.08554573774337769]
-{'codesize': 2, 'd0s': 3, 'd1s': 5, 'd1s_1': 2, 'd1s_2': 0, 'd1s_3': 5, 'dqty': 1, 'dqty_1': 0, 'o0act': 1, 'o0act_1': 0, 'u0s': 6, 'u0s_1': 0, 'u0s_2': 0, 'u0s_3': 3, 'u0s_4': 3}
-
+HalvedHarmonics
 '''
 def version_name():
-    return 'GooeyGumdrop'
+    return 'HalvedHarmonics'
 
 
 import os, sys, inspect
@@ -39,32 +32,46 @@ def penalized_loss(noise):
         return K.mean(K.square(y_pred - y_true) - K.abs(y_true - noise), axis=-1)
     return loss
 
-def predicted_error_loss(pred_err):
+def lin_sq_avg(a,b,lin,quad,pred_err=None,pred_lin=1,pred_quad=0):
+    '''
+    Linear, Square, Average utility function for error
+
+    Args:
+        a: first value (order unimportant)
+        b: second value (order unimportant)
+        lin: linear coefficient
+        quad: quadratic coefficient
+        pred_err: predicted magnitude of linear error
+
+    Returns:
+        Linear-Quadratic hybrid loss value
+    '''
+    lin_e = K.abs(a-b)
+    quad_e = K.square(lin_e)
+    sum_e = K.mean(lin_e*lin + quad_e*quad)
+
+    if pred_err is not None:
+        pred_err_e = K.abs(K.mean(lin_e) - pred_err)
+        pred_sq_e = K.square(pred_err_e)
+        sum_e += K.mean(pred_err_e*pred_lin + pred_sq_e*pred_quad)
+
+
+    return sum_e
+
+def predicted_error_loss(full_pred_err, forecast_pred_err, endpoint_pred_err):
     def loss(y_true, y_pred):
         # normal loss
-        full_mse = K.square(y_pred - y_true)
-        mse_coeff = 5
-        # linear loss
-        full_lin = K.abs(y_pred - y_true)
-        lin_coeff = 1
-        # predicted error loss
-        pred_err_loss = K.abs(full_lin - pred_err)
-        pred_err_coeff = 1/2
-        # square predicted error loss
-        pred_err_sq_loss = K.square(pred_err_loss)
-        pred_err_sq_coeff = 5/2
+        err_norm = lin_sq_avg(y_pred, y_true, 1, 5, full_pred_err, 1/4, 2)
 
-        mse_mean = K.mean(full_mse, axis=-1)
-        lin_mean = K.mean(full_lin, axis=-1)
-        pred_err_mean = K.mean(pred_err_loss)
-        pred_err_sq_mean = K.mean(pred_err_sq_loss)
+        # forecast loss
+        err_forecast = lin_sq_avg(y_pred[-20:], y_true[-20:], 1, 5,
+                                  forecast_pred_err, 0.5, 5)
 
-        l = 0
-        l += mse_mean*mse_coeff
-        l += lin_mean*lin_coeff
-        l += pred_err_sq_mean*pred_err_sq_coeff
-        l += pred_err_mean*pred_err_coeff
-        return l
+        # endpoint loss
+        err_endpoint = lin_sq_avg(y_pred[-1], y_true[-1], 0.5, 4,
+                                  endpoint_pred_err, 0.1, 10)
+
+        return err_norm + err_forecast + err_endpoint
 
     return loss
 
@@ -96,7 +103,7 @@ def linear_err(y_true, y_pred):
 
 
 def data():
-    d = np.load('../dataset.npz')
+    d = np.load('../dataset1k-300in-20out.npz')
 
     sets = ['train','test','validation']
 
@@ -130,8 +137,8 @@ def model(x_train, y_train, x_test, y_test):
     name = version_name()
     save_path = 'models/'+name+'.hd5'
     best_path = save_path + '.best'
-    input_length = 100
-    forecast_length = 10
+    input_length = 300
+    forecast_length = 20
     input_layers = 1
     output_layers = 1
     x_shape = (input_length + forecast_length,)
@@ -217,11 +224,13 @@ def model(x_train, y_train, x_test, y_test):
     out0 = Dense(np.prod(y_shape), activation=o0act)(last_layer)
 
     o1 = Dense(1, activation=o1act)(last_layer)
+    o2 = Dense(1, activation=o1act)(last_layer)
+    o3 = Dense(1, activation=o1act)(last_layer)
 
     o0 = Reshape(target_shape=y_shape, name='autoencoder_output')(out0)
 
     model = Model(inputs=i0, outputs=[o0])
-    model.compile(loss=predicted_error_loss(o1),
+    model.compile(loss=predicted_error_loss(o1,o2,o3),
                   optimizer='adam',
                   metrics=['mse',linear_err,
                            get_pred_err(o1),
@@ -256,7 +265,8 @@ def optimize():
                                                      version_name,
                                                      pred_err_only,
                                                      get_pred_err,
-                                                     linear_err],
+                                                     linear_err,
+                                                     lin_sq_avg],
                                           algo=tpe.suggest,
                                           max_evals=50,
                                           trials=Trials())
