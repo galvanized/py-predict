@@ -389,6 +389,11 @@ class Database():
 
 
     def sample_point(self, in_len, f_len, symbol, index, input_vectors=None, output_vectors=None):
+        '''
+            returns two lists, in format [[last_normed],[future_normed]]
+            last_normed: "known" values with trailing zeroes for "unknown"
+            future_normed: both "known" and "unknown" values together
+        '''
         sym_data = self.read_values(symbol)
 
         closes = sym_data['close']
