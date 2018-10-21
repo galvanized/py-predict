@@ -170,7 +170,7 @@ def model(x_train, y_train, x_test, y_test):
 
     print('FITTING')
 
-    model.fit(x_train, y_train, epochs=3,
+    model.fit(x_train, y_train, epochs=150,
         callbacks = [tb_callback, nan_callback],
         validation_data = (x_test, y_test))
 
@@ -194,7 +194,7 @@ def optimize():
                                                      get_pred_err,
                                                      linear_err],
                                           algo=tpe.suggest,
-                                          max_evals=30,
+                                          max_evals=50,
                                           trials=Trials())
     print(best_run)
 
