@@ -76,19 +76,6 @@ def predicted_error_loss(full_pred_err, forecast_pred_err, endpoint_pred_err):
     return loss
 
 
-
-def pred_err_only(pred_err):
-    def loss(y_true, y_pred):
-        # linear loss
-        full_lin = K.abs(y_pred - y_true)
-        # predicted error loss
-        pred_err_loss = K.abs(full_lin - pred_err)
-
-        pred_err_mean = K.mean(pred_err_loss)
-
-        return pred_err_mean
-    return loss
-
 def get_pred_err(pred_err):
     # not a loss! use as a metric for diagnostic purposes only
     def loss(y_true, y_pred):
@@ -100,6 +87,21 @@ def get_pred_err(pred_err):
 
 def linear_err(y_true, y_pred):
     return K.mean(K.abs(y_pred - y_true))
+
+def get_pred_err_loss(pred_err,pos):
+    def pred_err_loss(y_true, y_pred):
+        if pos == 1:
+            # normal loss
+            return lin_sq_avg(y_pred, y_true, 0, 0, pred_err, 1, 0)
+        elif pos == 2:
+            # forecast loss
+            return lin_sq_avg(y_pred[-20:], y_true[-20:], 0, 0,
+                                      pred_err, 1, 0)
+        else:
+            # endpoint loss
+            return lin_sq_avg(y_pred[-1], y_true[-1], 0, 0,
+                                      pred_err, 1, 0)
+    return pred_err_loss
 
 
 def data():
@@ -234,7 +236,11 @@ def model(x_train, y_train, x_test, y_test):
                   optimizer='adam',
                   metrics=['mse',linear_err,
                            get_pred_err(o1),
-                           pred_err_only(o1)])
+                           get_pred_err_loss(o1, 1),
+                           get_pred_err(o2),
+                           get_pred_err_loss(o2, 2),
+                           get_pred_err(o3),
+                           get_pred_err_loss(o1, 3)])
 
     tb_callback = keras.callbacks.TensorBoard(log_dir='/tmp/sp-tb', write_graph=False)
     nan_callback = keras.callbacks.TerminateOnNaN()
@@ -263,8 +269,8 @@ def optimize():
                                           data=data,
                                           functions=[predicted_error_loss,
                                                      version_name,
-                                                     pred_err_only,
                                                      get_pred_err,
+                                                     get_pred_err_loss,
                                                      linear_err,
                                                      lin_sq_avg],
                                           algo=tpe.suggest,
