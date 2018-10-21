@@ -1,3 +1,17 @@
+'''
+
+ElasticElk
+
+First model to utilize hyperparameter optimization.
+Simple future autoencoder.
+
+Results:
+msle 0.048327421098947526		mse 0.16322051227092743		mape 19.73542724609375
+{'Dense': 0, 'Dense_1': 0, 'Dense_2': 3, 'Dense_3': 2, 'Dense_4': 2, 'Dropout': 0.5172534041868964, 'Dropout_1': 0.026245604896735775, 'optimizer': 0}
+
+
+
+'''
 import os, sys, inspect
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from main import *
@@ -65,19 +79,22 @@ def model(x_train, y_train, x_test, y_test):
     i0 = Input(shape=x_shape, name='input_layer')
     bn = BatchNormalization()(i0)
     c0 = Concatenate()([i0, bn])
-    f0 = c0#Flatten()(c0)
+    f0 = c0
 
     ds0 = Dense(1000, activation='relu')(f0)
     ds1 = Dense(1000, activation='relu')(ds0)
     ds2 = Dense(1000, activation='relu')(ds1)
-    ds3 = Dense({{choice([512,256,128])}}, activation='relu')(ds2)
-    ds4 = Dense({{choice([512,256,128])}}, activation='relu')(ds3)
-    ds5 = Dense({{choice([512,256,128,64,32,16])}}, activation='relu')(ds4)
+    ds3 = Dense({{choice([512,256,128])}}, activation='relu')(ds2) #512
+    ds4 = Dense({{choice([512,256,128])}}, activation='relu')(ds3) #512
 
-    codelayer = ds5
+    do0 = Dropout({{uniform(0,1)}})(ds4) #0.517
 
-    us0 = Dense({{choice([512,256,128])}}, activation='relu')(codelayer)
-    us1 = Dense({{choice([512,256,128])}}, activation='relu')(us0)
+    codelayer = Dense({{choice([512,256,128,64,32,16])}}, activation='relu')(do0) #64
+
+    do1 = Dropout({{uniform(0,1)}})(codelayer) #0
+
+    us0 = Dense({{choice([512,256,128])}}, activation='relu')(do1) #128
+    us1 = Dense({{choice([512,256,128])}}, activation='relu')(us0) #128
     us2 = Dense(1000, activation='relu')(us1)
     us3 = Dense(1000, activation='relu')(us2)
     us4 = Dense(1000, activation='relu')(us3)
@@ -87,9 +104,11 @@ def model(x_train, y_train, x_test, y_test):
     o0 = Reshape(target_shape=y_shape, name='autoencoder_output')(out0)
 
     model = Model(inputs=i0, outputs=o0)
-    model.compile(loss='mean_absolute_percentage_error',
-                  optimizer='adam', #adam #RMSprop #adadelta
-                  metrics=['mse','mean_squared_logarithmic_error'])
+    model.compile(loss='mean_squared_logarithmic_error',
+                  optimizer={{choice(['adam','rmsprop','adadelta'])}}, #adam
+                  metrics=['mean_squared_logarithmic_error',
+                           'mean_squared_error',
+                            'mean_absolute_percentage_error'])
 
     tb_callback = keras.callbacks.TensorBoard(log_dir='/tmp/sp-tb', write_graph=False)
     nan_callback = keras.callbacks.TerminateOnNaN()
@@ -98,16 +117,16 @@ def model(x_train, y_train, x_test, y_test):
 
     print('FITTING')
 
-    model.fit(x_train, y_train, epochs=1,
+    model.fit(x_train, y_train, epochs=100,
         callbacks = [tb_callback, nan_callback],
         validation_data = (x_test, y_test))
 
     print('EVALUATING')
 
-    score, mse, msle = model.evaluate(x_train, y_train)
+    score, msle, mse, mape = model.evaluate(x_test, y_test)
 
     print('Test score:', score)
-    print('mse {},  msle {}'.format(mse, msle))
+    print('msle {}\t\tmse {}\t\tmape {}'.format(msle, mse, mape))
     return {'loss': msle, 'status': STATUS_OK, 'model': model}
 
 
@@ -115,7 +134,7 @@ def optimize():
     best_run, best_model = optim.minimize(model=model,
                                           data=data,
                                           algo=tpe.suggest,
-                                          max_evals=10,
+                                          max_evals=30,
                                           trials=Trials())
     print(best_run)
 
