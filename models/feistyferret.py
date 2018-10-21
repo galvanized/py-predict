@@ -38,19 +38,19 @@ def predicted_error_loss(pred_err):
     def loss(y_true, y_pred):
         # normal loss
         full_mse = K.square(y_pred - y_true)
-        mse_pow = 1.2
+        mse_coeff = 5
         # linear loss
         full_lin = K.abs(y_pred - y_true)
-        lin_pow = 0.5
+        lin_coeff = 1
         # predicted error loss
         pred_err_loss = K.square(full_lin - pred_err)
-        pred_err_pow = 1
+        pred_err_coeff = 3
 
         mse_mean = K.mean(full_mse, axis=-1)
         lin_mean = K.mean(full_lin, axis=-1)
         pred_err_mean = K.mean(pred_err_loss)
 
-        return mse_mean**mse_pow + lin_mean**lin_pow + pred_err_mean**pred_err_mean
+        return mse_mean*mse_coeff + lin_mean*lin_coeff + pred_err_mean*pred_err_coeff
     return loss
 
 
@@ -170,7 +170,7 @@ def model(x_train, y_train, x_test, y_test):
 
     print('FITTING')
 
-    model.fit(x_train, y_train, epochs=150,
+    model.fit(x_train, y_train, epochs=50,
         callbacks = [tb_callback, nan_callback],
         validation_data = (x_test, y_test))
 
