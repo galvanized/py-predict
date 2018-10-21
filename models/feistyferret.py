@@ -43,14 +43,24 @@ def predicted_error_loss(pred_err):
         full_lin = K.abs(y_pred - y_true)
         lin_coeff = 1
         # predicted error loss
-        pred_err_loss = K.square(full_lin - pred_err)
-        pred_err_coeff = 3
+        pred_err_loss = K.abs(full_lin - pred_err)
+        pred_err_coeff = 1/2
+        # square predicted error loss
+        pred_err_sq_loss = K.square(pred_err_loss)
+        pred_err_sq_coeff = 5/2
 
         mse_mean = K.mean(full_mse, axis=-1)
         lin_mean = K.mean(full_lin, axis=-1)
         pred_err_mean = K.mean(pred_err_loss)
+        pred_err_sq_mean = K.mean(pred_err_sq_loss)
 
-        return mse_mean*mse_coeff + lin_mean*lin_coeff + pred_err_mean*pred_err_coeff
+        l = 0
+        l += mse_mean*mse_coeff
+        l += lin_mean*lin_coeff
+        l += pred_err_sq_mean*pred_err_sq_coeff
+        l += pred_err_mean*pred_err_coeff
+        return l
+
     return loss
 
 
