@@ -68,8 +68,8 @@ def predicted_error_loss(full_pred_err, forecast_pred_err, endpoint_pred_err):
                                   forecast_pred_err, 0.5, 5)
 
         # endpoint loss
-        err_endpoint = lin_sq_avg(y_pred[-1], y_true[-1], 0.5, 4,
-                                  endpoint_pred_err, 0.1, 10)
+        err_endpoint = lin_sq_avg(y_pred[-1], y_true[-1], 2, 10,
+                                  endpoint_pred_err, 2, 10)
 
         return err_norm + err_forecast + err_endpoint
 
@@ -249,7 +249,7 @@ def model(x_train, y_train, x_test, y_test):
 
     print('FITTING')
 
-    model.fit(x_train, y_train, epochs=50,
+    model.fit(x_train, y_train, epochs=100,
         callbacks = [tb_callback, nan_callback],
         validation_data = (x_test, y_test))
 
@@ -274,7 +274,7 @@ def optimize():
                                                      linear_err,
                                                      lin_sq_avg],
                                           algo=tpe.suggest,
-                                          max_evals=50,
+                                          max_evals=100,
                                           trials=Trials())
     print(best_run)
 
