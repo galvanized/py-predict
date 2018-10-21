@@ -38,12 +38,12 @@ def predicted_error_loss(pred_err):
     def loss(y_true, y_pred):
         # normal loss
         full_mse = K.square(y_pred - y_true)
-        mse_pow = 1.5
+        mse_pow = 1.2
         # linear loss
         full_lin = K.abs(y_pred - y_true)
         lin_pow = 0.5
         # predicted error loss
-        pred_err_loss = K.abs(full_lin - pred_err)
+        pred_err_loss = K.square(full_lin - pred_err)
         pred_err_pow = 1
 
         mse_mean = K.mean(full_mse, axis=-1)
@@ -135,7 +135,7 @@ def model(x_train, y_train, x_test, y_test):
 
     do0 = Dropout(0.5)(ds4) #0.517
 
-    codelayer = Dense({{choice([512,256,128,64,32,16])}}, activation='relu')(do0) #64
+    codelayer = Dense(64, activation='relu')(do0) #64
 
     us0 = Dense(128, activation='relu')(codelayer) #128
     us1 = Dense(128, activation='relu')(us0) #128
@@ -145,9 +145,14 @@ def model(x_train, y_train, x_test, y_test):
 
     out0 = Dense(np.prod(y_shape), activation='relu')(us4)
 
-    e0 = Dense(64, activation='relu')(us2)
-    e1 = Dense(4, activation='relu')(e0)
-    o1 = Dense(1, activation='linear')(e1)
+    e0size = {{choice([512,256,128,64,32,16,8])}}
+    e1size = {{choice([512,256,128,64,32,16,8])}}
+    e1act = {{choice(['relu','linear'])}}
+    o1act = {{choice(['relu','linear'])}}
+
+    e0 = Dense(e0size, activation='relu')(us2)
+    e1 = Dense(e1size, activation=e1act)(e0)
+    o1 = Dense(1, activation=o1act)(e1)
 
     o0 = Reshape(target_shape=y_shape, name='autoencoder_output')(out0)
 
