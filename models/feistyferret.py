@@ -2,6 +2,11 @@
 
 FeistyFerret
 
+result
+
+Test losses: [0.5071295523643493, 0.05483564734458923, 0.09667558759450913, 0.07117459625005722, 0.07336644649505615]
+{'e0size': 3, 'e0size_1': 4, 'e1act': 0, 'e1act_1': 1}
+
 
 
 '''
@@ -155,10 +160,10 @@ def model(x_train, y_train, x_test, y_test):
 
     out0 = Dense(np.prod(y_shape), activation='relu')(us4)
 
-    e0size = {{choice([512,256,128,64,32,16,8])}}
-    e1size = {{choice([512,256,128,64,32,16,8])}}
-    e1act = {{choice(['relu','linear'])}}
-    o1act = {{choice(['relu','linear'])}}
+    e0size = {{choice([512,256,128,64,32,16,8])}} #64
+    e1size = {{choice([512,256,128,64,32,16,8])}} #32
+    e1act = {{choice(['relu','linear'])}} #relu
+    o1act = {{choice(['relu','linear'])}} #linear
 
     e0 = Dense(e0size, activation='relu')(us2)
     e1 = Dense(e1size, activation=e1act)(e0)
