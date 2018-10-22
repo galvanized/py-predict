@@ -1,5 +1,18 @@
 '''
 HalvedHarmonics
+
+
+
+Results
+
+    Configuration 1:
+        data source: dataset1k-300in-20out.npz
+        train epochs: 100
+        max_evals: 100
+
+        Test losses: [16.32986930847168, 0.5164208679199219, 0.48640352058410646, 0.16878474354743958, 0.3236579296588898, 0.1343782017827034, 0.36103206539154054, 0.007938170373439789, 0.3415458778142929]
+        {'codesize': 5, 'd0s': 6, 'd1s': 6, 'd1s_1': 4, 'd1s_2': 1, 'd1s_3': 5, 'dqty': 0, 'dqty_1': 1, 'o0act': 0, 'o0act_1': 1, 'u0s': 5, 'u0s_1': 3, 'u0s_2': 6, 'u0s_3': 2, 'u0s_4': 4}
+
 '''
 def version_name():
     return 'HalvedHarmonics'
@@ -78,12 +91,12 @@ def predicted_error_loss(full_pred_err, forecast_pred_err, endpoint_pred_err):
 
 def get_pred_err(pred_err):
     # not a loss! use as a metric for diagnostic purposes only
-    def loss(y_true, y_pred):
+    def value(y_true, y_pred):
 
         pred_err_mean = K.mean(pred_err)
 
         return pred_err_mean
-    return loss
+    return value
 
 def linear_err(y_true, y_pred):
     return K.mean(K.abs(y_pred - y_true))
@@ -153,9 +166,9 @@ def model(x_train, y_train, x_test, y_test):
 
     # --- begin down ---
 
-    dqty = {{choice([1,2,3,4,5])}}
+    dqty = {{choice([1,2,3,4,5])}} # cfg1: 1
 
-    d0s = {{choice([32,64,128,256, 512, 1024,2048])}}
+    d0s = {{choice([32,64,128,256, 512, 1024,2048])}} # cfg1: 2048
     ds0 = Dense(d0s, activation='relu')(f0)
     last_layer = ds0
 
@@ -184,22 +197,22 @@ def model(x_train, y_train, x_test, y_test):
 
     # --- begin code ---
 
-    do0 = Dropout(0.5)(last_layer) #0.517
+    do0 = Dropout(0.5)(last_layer)
 
-    codesize = {{choice([32,64,128,256,512,1024])}}
+    codesize = {{choice([32,64,128,256,512,1024])}} #cfg1: 512
 
-    codelayer = Dense(codesize, activation='relu')(do0) #64
+    codelayer = Dense(codesize, activation='relu')(do0)
 
     # --- begin up ----
 
-    uqty = {{choice([1,2,3,4,5])}}
+    uqty = {{choice([1,2,3,4,5])}} #cfg1: 2
 
-    u0s = {{choice([32,64,128,256,512,1024,2048])}}
+    u0s = {{choice([32,64,128,256,512,1024,2048])}} #cfg1: 1024
     us0 = Dense(u0s, activation='relu')(codelayer)
     last_layer = us0
 
     if uqty >= 2:
-        u1s = {{choice([32,64,128,256,512,1024,2048])}}
+        u1s = {{choice([32,64,128,256,512,1024,2048])}} #cfg1: 256
         us1 = Dense(u1s, activation='relu')(last_layer)
         last_layer = us1
 
@@ -220,8 +233,8 @@ def model(x_train, y_train, x_test, y_test):
 
     # --- begin output ---
 
-    o0act = {{choice(['relu','linear'])}}
-    o1act = {{choice(['relu','linear'])}} #linear
+    o0act = {{choice(['relu','linear'])}} #cfg1: relu
+    o1act = {{choice(['relu','linear'])}} #cfg1: linear
 
     out0 = Dense(np.prod(y_shape), activation=o0act)(last_layer)
 
