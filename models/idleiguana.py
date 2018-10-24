@@ -1,12 +1,15 @@
 '''
 IdleIguana
-    Exactly like HalvedHarmonics except with loss weight changes and optimizer optimization.
+    Like HalvedHarmonics, but with the following changes:
+    -optimizer optimization
+    -loss weight changes
+    -fixed layer count (two down three up)
 
 
 Results
 
     Configuration 1:
-        data source: dataset100k-300in-20out.npz
+        data source: dataset1k-300in-20out.npz
         train epochs: 20
         max_evals: 40
 '''
@@ -20,6 +23,7 @@ from main import *
 from stocks import *
 
 import numpy as np
+from math import *
 
 import keras
 from keras import models
@@ -114,7 +118,7 @@ def get_pred_err_loss(pred_err,pos):
 
 
 def data():
-    d = np.load('../dataset100k-300in-20out.npz')
+    d = np.load('../dataset1k-300in-20out.npz')
 
     sets = ['train','test','validation']
 
@@ -146,8 +150,8 @@ def data():
 
 def model(x_train, y_train, x_test, y_test):
     name = version_name()
-    save_path = 'models/'+name+'.hd5'
-    best_path = save_path + '.best'
+    save_path = name+'.hd5'
+    best_path = name + '.best.hdt'
     input_length = 300
     forecast_length = 20
     input_layers = 1
@@ -162,81 +166,44 @@ def model(x_train, y_train, x_test, y_test):
 
     # --- begin down ---
 
-    dqty = {{choice([1,2,3,4,5])}} # cfg1: 1
-
     d0s = {{choice([32,64,128,256, 512, 1024,2048])}} # cfg1: 2048
     ds0 = Dense(d0s, activation='relu')(f0)
-    last_layer = ds0
 
-
-    if dqty >= 2:
-        d1s = {{choice([32,64,128,256, 512, 1024, 2048])}}
-        ds1 = Dense(d1s, activation='relu')(last_layer)
-        last_layer = ds1
-
-
-    if dqty >= 3:
-        d2s = {{choice([32,64,128,256, 512, 1024, 2048])}}
-        ds2 = Dense(d2s, activation='relu')(last_layer)
-        last_layer = ds2
-
-
-    if dqty >= 4:
-        d3s = {{choice([32,64,128,256, 512, 1024, 2048])}}
-        ds3 = Dense(d3s, activation='relu')(last_layer)
-        last_layer = ds3
-
-    if dqty >= 5:
-        d4s = {{choice([32,64,128,256, 512, 1024, 2048])}}
-        ds4 = Dense(d4s, activation='relu')(last_layer)
-        last_layer = ds4
+    d1s = {{choice([32, 64, 128, 256, 512, 1024, 2048])}}
+    ds1 = Dense(d1s, activation='relu')(ds0)
 
     # --- begin code ---
 
-    do0 = Dropout(0.5)(last_layer)
+    do0 = Dropout(0.5)(ds1)
 
-    codesize = {{choice([32,64,128,256,512,1024])}} #cfg1: 512
+    codesize = {{choice([32,64,128,256,512,1024])}}
 
     codelayer = Dense(codesize, activation='relu')(do0)
 
     # --- begin up ----
 
-    uqty = {{choice([1,2,3,4,5])}} #cfg1: 2
-
-    u0s = {{choice([32,64,128,256,512,1024,2048])}} #cfg1: 1024
+    u0s = {{choice([32,64,128,256,512,1024,2048])}}
     us0 = Dense(u0s, activation='relu')(codelayer)
-    last_layer = us0
 
-    if uqty >= 2:
-        u1s = {{choice([32,64,128,256,512,1024,2048])}} #cfg1: 256
-        us1 = Dense(u1s, activation='relu')(last_layer)
-        last_layer = us1
+    u1s = {{choice([32,64,128,256,512,1024,2048])}}
+    us1 = Dense(u1s, activation='relu')(us0)
 
-    if uqty >= 3:
-        u2s = {{choice([32,64,128,256,512,1024,2048])}}
-        us2 = Dense(u2s, activation='relu')(last_layer)
-        last_layer = us2
+    u2s = {{choice([32,64,128,256,512,1024,2048])}}
+    us2 = Dense(u2s, activation='relu')(us1)
 
-    if uqty >= 4:
-        u3s = {{choice([32,64,128,256,512,1024,2048])}}
-        us3 = Dense(u3s, activation='relu')(last_layer)
-        last_layer = us3
-
-    if uqty >= 5:
-        u4s = {{choice([32,64,128,256,512,1024,2048])}}
-        us4 = Dense(u4s, activation='relu')(last_layer)
-        last_layer = us4
+    last_layer = us2
 
     # --- begin output ---
 
     o0act = {{choice(['relu','linear'])}} #cfg1: relu
-    o1act = {{choice(['relu','linear'])}} #cfg1: linear
 
     out0 = Dense(np.prod(y_shape), activation=o0act)(last_layer)
 
-    o1 = Dense(1, activation=o1act)(last_layer)
-    o2 = Dense(1, activation=o1act)(last_layer)
-    o3 = Dense(1, activation=o1act)(last_layer)
+    oerract = {{choice(['relu','linear'])}} #cfg1: linear
+
+    o1 = Dense(1, activation=oerract)(last_layer)
+    o2 = Dense(1, activation=oerract)(last_layer)
+    o3 = Dense(1, activation=oerract)(last_layer)
 
     o0 = Reshape(target_shape=y_shape, name='autoencoder_output')(out0)
 
@@ -286,6 +253,11 @@ def optimize():
                                           max_evals=40,
                                           trials=Trials())
     print(best_run)
+    q_sigfigs = 5
+    sigfigs = lambda x, n: round(x, -int(floor(log10(abs(x)))) + (n - 1))
+    auto_path = version_name() + '_{}_.hypopt.hd5'.format(
+        sigfigs(best_run[0],q_sigfigs))
+    best_model.save(auto_path)
 
 
 if __name__ == '__main__':
