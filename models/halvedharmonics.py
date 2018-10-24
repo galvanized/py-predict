@@ -13,6 +13,14 @@ Results
         Test losses: [16.32986930847168, 0.5164208679199219, 0.48640352058410646, 0.16878474354743958, 0.3236579296588898, 0.1343782017827034, 0.36103206539154054, 0.007938170373439789, 0.3415458778142929]
         {'codesize': 5, 'd0s': 6, 'd1s': 6, 'd1s_1': 4, 'd1s_2': 1, 'd1s_3': 5, 'dqty': 0, 'dqty_1': 1, 'o0act': 0, 'o0act_1': 1, 'u0s': 5, 'u0s_1': 3, 'u0s_2': 6, 'u0s_3': 2, 'u0s_4': 4}
 
+    Configuration 2:
+        data source: dataset100k-300in-20out.npz
+        train epochs: 2
+        max_evals: 100
+        
+        Test losses: [1444630.4742322143, 103428.40657415504, 3.489900669384003, 3.362796533203125, 5.551061398005485, 5.377477859115601, 5.136147807884217, 1.0872343446731567, 3.0531502010941507]
+        {'codesize': 0, 'd0s': 3, 'd1s': 3, 'd1s_1': 2, 'd1s_2': 0, 'd1s_3': 5, 'dqty': 0, 'dqty_1': 1, 'o0act': 1, 'o0act_1': 0, 'u0s': 4, 'u0s_1': 1, 'u0s_2': 1, 'u0s_3': 6, 'u0s_4': 6}
+
 '''
 def version_name():
     return 'HalvedHarmonics'
@@ -118,7 +126,7 @@ def get_pred_err_loss(pred_err,pos):
 
 
 def data():
-    d = np.load('../dataset1k-300in-20out.npz')
+    d = np.load('../dataset100k-300in-20out.npz')
 
     sets = ['train','test','validation']
 
@@ -262,7 +270,7 @@ def model(x_train, y_train, x_test, y_test):
 
     print('FITTING')
 
-    model.fit(x_train, y_train, epochs=100,
+    model.fit(x_train, y_train, epochs=2,
         callbacks = [tb_callback, nan_callback],
         validation_data = (x_test, y_test))
 
