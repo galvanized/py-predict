@@ -1,6 +1,6 @@
 '''
 IdleIguana
-    Exactly like HalvedHarmonics except with loss weight changes.
+    Exactly like HalvedHarmonics except with loss weight changes and optimizer optimization.
 
 
 Results
@@ -8,7 +8,7 @@ Results
     Configuration 1:
         data source: dataset100k-300in-20out.npz
         train epochs: 20
-        max_evals: 20
+        max_evals: 40
 '''
 def version_name():
     return 'IdleIguana'
@@ -242,7 +242,7 @@ def model(x_train, y_train, x_test, y_test):
 
     model = Model(inputs=i0, outputs=[o0])
     model.compile(loss=predicted_error_loss(o1,o2,o3),
-                  optimizer='adam',
+                  optimizer={{choice(['adam','rmsprop','adadelta'])}},
                   metrics=['mse',linear_err,
                            get_pred_err(o1),
                            get_pred_err_loss(o1, 1),
@@ -283,7 +283,7 @@ def optimize():
                                                      linear_err,
                                                      lin_sq_avg],
                                           algo=tpe.suggest,
-                                          max_evals=20,
+                                          max_evals=40,
                                           trials=Trials())
     print(best_run)
 
