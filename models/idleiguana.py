@@ -12,6 +12,22 @@ Results
         data source: dataset1k-300in-20out.npz
         train epochs: 20
         max_evals: 40
+
+        {'codesize': 2, 'd0s': 1, 'd1s': 5, 'o0act': 1, 'o0act_1': 1, 'optimizer': 2, 'u0s': 0, 'u0s_1': 1, 'u0s_2': 6}
+
+    Configuration 2:
+        data source: dataset1k-300in-20out.npz
+        train epochs: 100
+        max_evals: 40
+
+        {'codesize': 1, 'd0s': 4, 'd1s': 6, 'o0act': 1, 'o0act_1': 1, 'optimizer': 2, 'u0s': 3, 'u0s_1': 1, 'u0s_2': 3}
+
+    Configuration 3:
+        data source: dataset1k-300in-20out.npz
+        train epochs: 500
+        max_evals: 40
+
+        {'codesize': 1, 'd0s': 1, 'd1s': 5, 'o0act': 1, 'o0act_1': 1, 'optimizer': 2, 'u0s': 3, 'u0s_1': 1, 'u0s_2': 0}
 '''
 def version_name():
     return 'IdleIguana'
@@ -225,7 +241,7 @@ def model(x_train, y_train, x_test, y_test):
 
     print('FITTING')
 
-    model.fit(x_train, y_train, epochs=20,
+    model.fit(x_train, y_train, epochs=500,
         callbacks = [tb_callback, nan_callback],
         validation_data = (x_test, y_test))
 
@@ -253,10 +269,7 @@ def optimize():
                                           max_evals=40,
                                           trials=Trials())
     print(best_run)
-    q_sigfigs = 5
-    sigfigs = lambda x, n: round(x, -int(floor(log10(abs(x)))) + (n - 1))
-    auto_path = version_name() + '_{}_.hypopt.hd5'.format(
-        sigfigs(best_run[0],q_sigfigs))
+    auto_path = version_name() + '.hypopt.hd5'
     best_model.save(auto_path)
 
 
