@@ -121,8 +121,8 @@ def get_pred_err_loss(pred_err,pos):
     return pred_err_loss
 
 
-def data():
-    d = np.load('../dataset-trusted-10k-300in-20out.npz')
+def data(dataset_path='../dataset-trusted-10k-300in-20out.npz'):
+    d = np.load(dataset_path)
 
     sets = ['train','test','validation']
 
@@ -319,14 +319,17 @@ def model(x_train, y_train, x_test, y_test, x_val=None, y_val=None,
         print('FORECASTING FROM RECENT')
         recent_xs, recent_syms = recent_data(load_recent)
 
-        p0, p1, p2, p3 = model.predict_on_batch(recent_xs)
+        print("Recent xs shape:")
+        print(recent_xs.shape)
+
+        p0, p1, p2, p3 = model.predict(recent_xs)
 
         for i in range(len(p0)):
             print(recent_syms[i], p0[i][-20:], p1[i], p2[i], p3[i])
 
 
 if __name__ == '__main__':
-    mode = 'train'
+    mode = 'recent'
     if mode is 'train':
         model(*data())
     elif mode is 'recent':

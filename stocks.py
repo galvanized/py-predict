@@ -409,6 +409,8 @@ class Database():
         out_vals = closes[samp_i:samp_i+in_len+f_len]
         f_val = closes[samp_i+in_len+f_len]
 
+        total_vals = closes[samp_i:samp_i+in_len+f_len]
+
         vol_dat = sym_data['volume'][samp_i:samp_i+in_len]
 
         if 0 in in_vals:
@@ -417,6 +419,15 @@ class Database():
         if max(vol_dat) == 0:
             print("Zero maximum volume for stock {}! Omitting.".format(symbol))
             return None
+        totalmin = min(total_vals)
+        totalmax = max(total_vals)
+        if totalmin == 0:
+            print('Zero found in {}, skipping'.format(s))
+            return None
+        if totalmax/totalmin > 1000:
+            print('Max/min ratio exceeds 1000 in {}, skipping'.format(s))
+            return None
+            
         denom = in_vals[-1]
         last_normed = [x/denom for x in in_vals] + [0]*f_len
         future_normed = [x/denom for x in out_vals]

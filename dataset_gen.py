@@ -184,11 +184,26 @@ def generate_recent(create_path = 'recent.npz', database_path = 'stockdata.sqlit
             closes = sym_data['close']
 
             in_vals = closes[-in_len:]
+            if len(in_vals) < in_len:
+                print('Not enough data for {}, skipping'.format(s))
+                continue
+
+            ptmin = min(in_vals)
+            ptmax = max(in_vals)
+            if ptmin == 0:
+                print('Zero in {}, skipping'.format(s))
+                continue
+            if ptmax/ptmin > 100:
+                print('Max/min ratio exceeds 100 in {}, skipping'.format(s))
+                continue
 
             denom = in_vals[-1]
             last_normed = [x/denom for x in in_vals] + [0]*f_len
 
             pt = [last_normed,[1]*f_len]
+
+
+
 
             recent_pairs.append(pt)
             recent_symbols.append(s)
@@ -203,7 +218,7 @@ def generate_recent(create_path = 'recent.npz', database_path = 'stockdata.sqlit
 
 
 if __name__ == '__main__':
-    preset = 'trusted-recent'
+    preset = 'medium'
 
     if preset == 'small':
         generate_npz(symbols = None, create_path='dataset1k-300in-20out.npz',
@@ -211,7 +226,7 @@ if __name__ == '__main__':
                      in_len = 300, f_len = 20)
 
     elif preset == 'medium':
-        generate_npz(symbols = None, create_path='dataset10k-300in-20out.npz',
+        generate_npz(symbols = None, create_path='10k-300in-20out.npz',
                      train_samples = 10000, test_samples = 5000, validation_samples = 2000,
                      in_len = 300, f_len = 20)
 
@@ -220,6 +235,7 @@ if __name__ == '__main__':
                      create_path='dataset-trusted-10k-300in-20out.npz',
                      train_samples = 10000, test_samples = 5000, validation_samples = 2000,
                      in_len = 300, f_len = 20)
+
     elif preset == 'trusted-recent':
         generate_recent(symbols = ['^GSPC','^DJI','^IXIC','GOOG','AAPL','ETSY','SQ'],
                      create_path='dataset-recent-300in-20out.npz',
