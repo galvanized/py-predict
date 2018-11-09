@@ -3,14 +3,22 @@ NuclearNinja
 
     low dropout version of mysticalmagnesium
 
+    Normal 10k
+
     Test losses: [0.5653241596221924, 0.08713585588335991, 0.05836932975053787, 0.05097915539145469, 0.026168839924037457, 0.04537621736526489, 0.03318183604627847, 0.04628213608264923, 0.03274798749387264]
     Best losses: [0.5998387345671654, 0.09147641441598535, 0.05840622755885124, 0.04820761889219284, 0.023823161318898202, 0.04590229606628418, 0.030691411778330804, 0.038036927610635755, 0.02918039954826236]
     Best validation: [0.18878392878543962, 0.016901307048268623, 0.056339849227598375, 0.045558608800440756, 0.019933234509471414, 0.04427513605231172, 0.024956559025488056, 0.03566064302261535, 0.034224714076222774]
 
+    "Trusted" 10k
+
+    Test losses: [0.029671217530965806, 0.0020782391257584097, 0.023168500620126726, 0.02038313897848129, 0.009017764800786972, 0.022850150445103645, 0.008942136883735657, 0.019843418461084367, 0.014010740262269974]
+    Best losses: [0.0312716003537178, 0.0021814295906573532, 0.023752483874559402, 0.02285811047554016, 0.008168225035071372, 0.025452969813346864, 0.008581066036224366, 0.020046039432287215, 0.014289962908625603]
+    Best validation: [0.024447782768466247, 0.0017242083291773094, 0.02246514113172181, 0.02320069247956338, 0.007918391291094923, 0.025365078455020583, 0.008514379758549772, 0.020097630435432393, 0.013360454686458918]
+
 
 '''
 def version_name():
-    return 'NuclearNinja'
+    return 'NuclearNinja10kTrusted'
 
 
 import os, sys, inspect
@@ -114,7 +122,7 @@ def get_pred_err_loss(pred_err,pos):
 
 
 def data():
-    d = np.load('../dataset1k-300in-20out.npz')
+    d = np.load('../dataset-trusted-10k-300in-20out.npz')
 
     sets = ['train','test','validation']
 
@@ -145,8 +153,27 @@ def data():
 
     return x_train, y_train, x_test, y_test, x_validation, y_validation
 
+def recent_data(loadpath='../dataset-trusted-recent-300in-20out.npz'):
+    d = np.load(loadpath)
 
-def model(x_train, y_train, x_test, y_test, x_val=None, y_val=None):
+    pairs = d['recent']
+    xs = []
+
+    o = {}
+
+    for p in pairs:
+        print(p[0])
+        xnew, ynew = p
+        xs.append(xnew)
+
+    xs = np.array(xs)
+    print(xs.shape)
+
+    return xs, d['syms']
+
+
+def model(x_train, y_train, x_test, y_test, x_val=None, y_val=None,
+          load_existing=None, skip_train=False, load_recent=None):
     name = version_name()
     save_path = name+'.hd5'
     best_path = name + '.best.hd5'
@@ -156,6 +183,13 @@ def model(x_train, y_train, x_test, y_test, x_val=None, y_val=None):
     output_layers = 1
     x_shape = (input_length + forecast_length,)
     y_shape = (input_length + forecast_length,)
+
+    yfill_train = np.array([[0]]*len(y_train))
+    yfill_test = np.array([[0]]*len(y_test))
+    if y_val is not None:
+        yfill_val = np.array([[0]]*len(y_val))
+
+    print(x_train.shape, y_train.shape, yfill_train.shape)
 
     i0 = Input(shape=x_shape, name='input_layer')
     f0type = 2
@@ -228,13 +262,14 @@ def model(x_train, y_train, x_test, y_test, x_val=None, y_val=None):
 
     oerract = 'linear'
 
-    o1 = Dense(1, activation=oerract)(last_layer)
-    o2 = Dense(1, activation=oerract)(last_layer)
-    o3 = Dense(1, activation=oerract)(last_layer)
+    o1 = Dense(1, activation=oerract, name='o1')(last_layer)
+    o2 = Dense(1, activation=oerract, name='o2')(last_layer)
+    o3 = Dense(1, activation=oerract, name='o3')(last_layer)
 
-    o0 = Reshape(target_shape=y_shape, name='autoencoder_output')(out0)
+    o0 = Reshape(target_shape=y_shape, name='autoencoder_output1')(out0)
 
-    model = Model(inputs=i0, outputs=[o0])
+    model = Model(inputs=i0, outputs=[o0,o1,o2,o3])
+
     model.compile(loss=predicted_error_loss(o1,o2,o3),
                   optimizer='adadelta',
                   metrics=['mse',linear_err,
@@ -250,32 +285,50 @@ def model(x_train, y_train, x_test, y_test, x_val=None, y_val=None):
     checkpoint_callback = keras.callbacks.ModelCheckpoint(
     best_path, monitor='loss', save_best_only=True)
 
-    print('FITTING')
+    if load_existing:
+        print('Loading model from {} .'.format(load_existing))
+        model.load_weights(load_existing)
 
-    model.fit(x_train, y_train, epochs=2000,
-        callbacks = [tb_callback, nan_callback, checkpoint_callback],
-        validation_data = (x_test, y_test))
+    if not skip_train:
 
-    model.save(save_path)
+        print('FITTING')
 
-    print('EVALUATING')
+        model.fit([x_train], [y_train,yfill_train,yfill_train,yfill_train], epochs=2000,
+            callbacks = [tb_callback, nan_callback, checkpoint_callback],
+            validation_data = (x_test, [y_test,yfill_test,yfill_test,yfill_test]))
 
-    score = model.evaluate(x_test, y_test)
-    loss = score[0]
+        model.save(save_path)
+
+    if not load_recent:
+
+        print('EVALUATING')
+
+        score = model.evaluate(x_test, [y_test,yfill_test,yfill_test,yfill_test])
+        loss = score[0]
+
+        print('Test losses:', score)
+        model.load_weights(best_path)
+
+        print('Best losses:', model.evaluate(x_test, [y_test,yfill_test,yfill_test,yfill_test]))
+
+        if x_val is not None and y_val is not None:
+            print('Best validation:', model.evaluate(x_val, [y_val,yfill_val,yfill_val,yfill_val]))
 
 
+    if load_recent:
+        print('FORECASTING FROM RECENT')
+        recent_xs, recent_syms = recent_data(load_recent)
 
+        p0, p1, p2, p3 = model.predict_on_batch(recent_xs)
 
-    print('Test losses:', score)
-    model.load_weights(best_path)
-
-    print('Best losses:', model.evaluate(x_test, y_test))
-
-    if x_val is not None and y_val is not None:
-        print('Best validation:', model.evaluate(x_val, y_val))
-
-    return {'loss': loss, 'status': STATUS_OK}
+        for i in range(len(p0)):
+            print(recent_syms[i], p0[i][-20:], p1[i], p2[i], p3[i])
 
 
 if __name__ == '__main__':
-    model(*data())
+    mode = 'train'
+    if mode is 'train':
+        model(*data())
+    elif mode is 'recent':
+        model(*data(),load_existing=version_name()+'.best.hd5',
+              skip_train=True,load_recent='../dataset-recent-300in-20out.npz')

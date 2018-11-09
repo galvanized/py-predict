@@ -62,7 +62,7 @@ def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite'
                  in_len = 100, f_len = 10, symbols = None, vectors = None,
                  train_samples = 1, test_samples = 1, validation_samples = 1):
 
-    db = Database('stockdata.sqlite')
+    db = Database(database_path)
     db.init_db()
 
 
@@ -150,11 +150,60 @@ def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite'
 
     np.savez_compressed(create_path, train=train_pairs, test=test_pairs, validation=validation_pairs)
 
+def generate_recent(create_path = 'recent.npz', database_path = 'stockdata.sqlite',
+                 in_len = 100, f_len = 10, symbols = None, vectors = None):
 
+    db = Database(database_path)
+    db.init_db()
+
+
+    if not symbols:
+        symbols = db.list_symbols()
+
+    lengths = []
+
+    lengths_sum = sum(lengths)
+
+    indexes = list(range(lengths_sum))
+
+    random.shuffle(indexes)
+
+    recent_pairs = []
+    recent_symbols = []
+
+    needed_samples = len(symbols)
+
+    ct = 0 # used for progress indication
+    numlen = int(math.ceil(math.log10(needed_samples))) + 1
+
+    current_index = 0
+
+    for s in symbols:
+        try:
+            sym_data = db.read_values(s)
+            closes = sym_data['close']
+
+            in_vals = closes[-in_len:]
+
+            denom = in_vals[-1]
+            last_normed = [x/denom for x in in_vals] + [0]*f_len
+
+            pt = [last_normed,[1]*f_len]
+
+            recent_pairs.append(pt)
+            recent_symbols.append(s)
+
+            print("Got {}.".format(s))
+
+        except Exception as e:
+            print("SAMPLE FAILURE ON {}!".format(s), e)
+
+
+    np.savez_compressed(create_path, recent=recent_pairs, syms=recent_symbols)
 
 
 if __name__ == '__main__':
-    preset = 'medium'
+    preset = 'trusted-recent'
 
     if preset == 'small':
         generate_npz(symbols = None, create_path='dataset1k-300in-20out.npz',
@@ -164,6 +213,16 @@ if __name__ == '__main__':
     elif preset == 'medium':
         generate_npz(symbols = None, create_path='dataset10k-300in-20out.npz',
                      train_samples = 10000, test_samples = 5000, validation_samples = 2000,
+                     in_len = 300, f_len = 20)
+
+    elif preset == 'medium-trusted':
+        generate_npz(symbols = ['^GSPC','^DJI','^IXIC','GOOG','AAPL','ETSY','SQ'],
+                     create_path='dataset-trusted-10k-300in-20out.npz',
+                     train_samples = 10000, test_samples = 5000, validation_samples = 2000,
+                     in_len = 300, f_len = 20)
+    elif preset == 'trusted-recent':
+        generate_recent(symbols = ['^GSPC','^DJI','^IXIC','GOOG','AAPL','ETSY','SQ'],
+                     create_path='dataset-recent-300in-20out.npz',
                      in_len = 300, f_len = 20)
 
     elif preset == 'big':

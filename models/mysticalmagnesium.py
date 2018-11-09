@@ -10,7 +10,7 @@ MysticalMagnesium
 
 '''
 def version_name():
-    return 'MysticalMagnesium'
+    return 'MysticalMagnesium10k'
 
 
 import os, sys, inspect
@@ -114,7 +114,7 @@ def get_pred_err_loss(pred_err,pos):
 
 
 def data():
-    d = np.load('../dataset1k-300in-20out.npz')
+    d = np.load('../dataset10k-300in-20out.npz')
 
     sets = ['train','test','validation']
 
