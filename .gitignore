@@ -12,4 +12,8 @@ __pycache__
 *.npz
 *.htm
 *.html
+
+
+models
+
 .vscode
