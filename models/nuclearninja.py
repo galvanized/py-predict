@@ -1,8 +1,6 @@
 '''
 NuclearNinja
 
-    low dropout version of mysticalmagnesium
-
     Normal 10k
 
     Test losses: [0.5653241596221924, 0.08713585588335991, 0.05836932975053787, 0.05097915539145469, 0.026168839924037457, 0.04537621736526489, 0.03318183604627847, 0.04628213608264923, 0.03274798749387264]
@@ -18,7 +16,7 @@ NuclearNinja
 
 '''
 def version_name():
-    return 'NuclearNinja10kTrusted'
+    return 'NuclearNinjaV2'
 
 
 import os, sys, inspect
@@ -205,12 +203,12 @@ def model(x_train, y_train, x_test, y_test, x_val=None, y_val=None,
 
     # --- begin down ---
 
-    do0 = Dropout(0.1)(f0)
+    do0 = Dropout(0.5)(f0)
 
     d0s = 512
     ds0 = Dense(d0s, activation='relu')(do0)
 
-    do1 = Dropout(0.1)(ds0)
+    do1 = Dropout(0.5)(ds0)
 
     d1s = 512
     ds1 = Dense(d1s, activation='relu')(do1)
@@ -220,19 +218,21 @@ def model(x_train, y_train, x_test, y_test, x_val=None, y_val=None,
     do2 = Dropout(0)(ci)
 
     c0 = Conv1D(filters, kernel_size)(do2)
+    c1 = Conv1D(filters//2, 3)(c0)
 
     # --- begin code ---
 
-    do3 = Dropout(0.1)(ds1)
+    do3 = Dropout(0.25)(ds1)
 
     codesize = 64
 
     densecode = Dense(codesize, activation='relu')(do0)
 
     pool_size = 5
-    convcode = MaxPooling1D(pool_size)(c0)
+    convcode0 = MaxPooling1D(pool_size)(c0)
+    convcode1 = MaxPooling1D(pool_size)(c1)
 
-    codelayer = Concatenate()([densecode, Flatten()(convcode)])
+    codelayer = Concatenate()([densecode, Flatten()(convcode0), Flatten()(convcode1)])
 
 
 
@@ -240,17 +240,17 @@ def model(x_train, y_train, x_test, y_test, x_val=None, y_val=None,
 
     # --- begin up ----
 
-    do4 = Dropout(0.1)(codelayer)
+    do4 = Dropout(0.25)(codelayer)
 
     u0s = 256
     us0 = Dense(u0s, activation='relu')(do4)
 
-    do5 = Dropout(0.1)(us0)
+    do5 = Dropout(0.25)(us0)
 
     u1s = 256
     us1 = Dense(u1s, activation='relu')(do5)
 
-    do6 = Dropout(0.1)(us1)
+    do6 = Dropout(0.25)(us1)
 
     last_layer = do6
 
@@ -293,7 +293,7 @@ def model(x_train, y_train, x_test, y_test, x_val=None, y_val=None,
 
         print('FITTING')
 
-        model.fit([x_train], [y_train,yfill_train,yfill_train,yfill_train], epochs=2000,
+        model.fit([x_train], [y_train,yfill_train,yfill_train,yfill_train], epochs=100,
             callbacks = [tb_callback, nan_callback, checkpoint_callback],
             validation_data = (x_test, [y_test,yfill_test,yfill_test,yfill_test]))
 
@@ -329,9 +329,11 @@ def model(x_train, y_train, x_test, y_test, x_val=None, y_val=None,
 
 
 if __name__ == '__main__':
-    mode = 'recent'
+    mode = 'continue'
     if mode is 'train':
-        model(*data())
+        model(*data('../10k-300in-20out.npz'))
+    elif mode is 'continue':
+        model(*data('../10k-300in-20out.npz'),load_existing=version_name()+'.best.hd5')
     elif mode is 'recent':
-        model(*data(),load_existing=version_name()+'.best.hd5',
+        model(*data('../10k-300in-20out.npz'),load_existing=version_name()+'.best.hd5',
               skip_train=True,load_recent='../dataset-recent-300in-20out.npz')
