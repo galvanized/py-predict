@@ -15,6 +15,8 @@ import random
 import math
 import numpy as np
 from stocks import Database
+import time
+import datetime
 
 class NotEnoughDataError(Exception):
     pass
@@ -62,6 +64,8 @@ def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite'
                  in_len = 100, f_len = 10, symbols = None, vectors = None,
                  train_samples = 1, test_samples = 1, validation_samples = 1):
 
+    starttime = time.time()
+
     db = Database(database_path)
     db.init_db()
 
@@ -99,6 +103,10 @@ def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite'
 
     current_index = 0
 
+    splittime = time.time()
+
+    print('Starting sampling. {}s elapsed.'.format(splittime-starttime))
+
     for i in range(needed_samples + 1):
         ct += 1
 
@@ -107,9 +115,14 @@ def generate_npz(create_path = 'dataset.npz', database_path = 'stockdata.sqlite'
         while type(pt) == type(None):
 
             target_sym, target_index = get_stock_index(symbols,lengths, indexes[current_index])
+
+            now = time.time()
+            remaining_time = (needed_samples-ct+1)*(now-splittime)/ct
             print('selected {}/{}'.format(
-                str(ct).zfill(numlen),str(needed_samples).zfill(numlen))
-                  ,target_sym, target_index)
+                      str(ct).zfill(numlen),str(needed_samples).zfill(numlen)),
+                  target_sym, target_index)
+            print('{} remaining.'.format(datetime.timedelta(seconds=remaining_time)))
+            print()
 
             try:
                 pt = db.sample_point(in_len = in_len, f_len = f_len,
@@ -215,6 +228,8 @@ def generate_recent(create_path = 'recent.npz', database_path = 'stockdata.sqlit
 
 
     np.savez_compressed(create_path, recent=recent_pairs, syms=recent_symbols)
+
+
 
 
 if __name__ == '__main__':
