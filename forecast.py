@@ -17,7 +17,7 @@ syms = syms[:-1] # omit last 'stock', which is empty due to trailing newline
 
 db = stocks.Database('stockdata.sqlite')
 db.init_db()
-#db.yahoo_to_db(sym_file)
+db.yahoo_to_db(sym_file)
 dataset_gen.generate_recent(symbols = syms,
              create_path='dataset-recent-300in-20out.npz',
              in_len = 300, f_len = 20)
