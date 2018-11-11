@@ -225,7 +225,7 @@ def return_single(sym, database_path = 'stockdata.sqlite', step=1, incl_len=None
     '''
         Returns all samples from a single stock in chronological order.
         May skip days as determined by step. 1 includes all, 2 includes half, etc.
-        Incl_len specifies how many days of samples to include (ignoring skip),
+        Incl_len specifies the span of samples to include (ignoring skip),
             always the most recent.
     '''
     output = []
@@ -255,8 +255,14 @@ def return_single(sym, database_path = 'stockdata.sqlite', step=1, incl_len=None
 
     indexes = indexes[-incl_len::step]
 
+    sym_data = db.read_values(sym)
+    closes = sym_data['close']
+
     for i in indexes:
-        output.append(db.sample_point(in_len, f_len, sym, i))
+        denom = closes[i+in_len]
+        x = [p/denom for p in closes[i:i+in_len]+[0]*f_len]
+        y = [p/denom for p in closes[i+in_len:i+in_len+f_len]]
+        output.append([x,y])
 
     return output
 

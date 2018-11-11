@@ -170,8 +170,8 @@ def recent_data(loadpath='../dataset-trusted-recent-300in-20out.npz'):
     return xs, d['syms']
 
 
-def model(x_train, y_train, x_test, y_test, x_val=None, y_val=None,
-          load_existing=None, skip_train=False, load_recent=None):
+def model(x_train, y_train=None, x_test=None, y_test=None, x_val=None, y_val=None,
+          load_existing=None, skip_train=False, load_recent=None, predict=False):
     name = version_name()
     save_path = name+'.hd5'
     best_path = name + '.best.hd5'
@@ -182,12 +182,14 @@ def model(x_train, y_train, x_test, y_test, x_val=None, y_val=None,
     x_shape = (input_length + forecast_length,)
     y_shape = (input_length + forecast_length,)
 
-    yfill_train = np.array([[0]]*len(y_train))
-    yfill_test = np.array([[0]]*len(y_test))
-    if y_val is not None:
-        yfill_val = np.array([[0]]*len(y_val))
+    if y_train is not None:
 
-    print(x_train.shape, y_train.shape, yfill_train.shape)
+        yfill_train = np.array([[0]]*len(y_train))
+        yfill_test = np.array([[0]]*len(y_test))
+        if y_val is not None:
+            yfill_val = np.array([[0]]*len(y_val))
+
+        print(x_train.shape, y_train.shape, yfill_train.shape)
 
     i0 = Input(shape=x_shape, name='input_layer')
     f0type = 2
@@ -293,13 +295,13 @@ def model(x_train, y_train, x_test, y_test, x_val=None, y_val=None,
 
         print('FITTING')
 
-        model.fit([x_train], [y_train,yfill_train,yfill_train,yfill_train], epochs=100,
+        model.fit([x_train], [y_train,yfill_train,yfill_train,yfill_train], epochs=1000,
             callbacks = [tb_callback, nan_callback, checkpoint_callback],
             validation_data = (x_test, [y_test,yfill_test,yfill_test,yfill_test]))
 
         model.save(save_path)
 
-    if not load_recent:
+    if not load_recent and y_train is not None:
 
         print('EVALUATING')
 
@@ -327,11 +329,19 @@ def model(x_train, y_train, x_test, y_test, x_val=None, y_val=None,
         for i in range(len(p0)):
             print(recent_syms[i], p0[i][-20:], p1[i], p2[i], p3[i])
 
+    if predict:
+        print('Predicting...')
+        p0, p1, p2, p3 = model.predict(x_train)
+        return [p0, p1, p2, p3]
+
 
 if __name__ == '__main__':
     mode = 'continue'
     if mode is 'train':
         model(*data('../10k-300in-20out.npz'))
+    if mode is 'evaluate':
+        model(*data('../10k-300in-20out.npz'),load_existing=version_name()+'.best.hd5',
+              skip_train=True)
     elif mode is 'continue':
         model(*data('../10k-300in-20out.npz'),load_existing=version_name()+'.best.hd5')
     elif mode is 'recent':
