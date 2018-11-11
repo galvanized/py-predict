@@ -220,12 +220,13 @@ def generate_recent(create_path = 'recent.npz', database_path = 'stockdata.sqlit
 
     np.savez_compressed(create_path, recent=recent_pairs, syms=recent_symbols)
 
-def return_single(database_path = 'stockdata.sqlite', sym=None, step=1,
+def return_single(sym, database_path = 'stockdata.sqlite', step=1, incl_len=None,
                   in_len = 100, f_len = 10):
     '''
         Returns all samples from a single stock in chronological order.
         May skip days as determined by step. 1 includes all, 2 includes half, etc.
-        Always includes oldest full sample.
+        Incl_len specifies how many days of samples to include (ignoring skip),
+            always the most recent.
     '''
     output = []
     if not sym:
@@ -236,9 +237,13 @@ def return_single(database_path = 'stockdata.sqlite', sym=None, step=1,
     db.c.execute('SELECT count(*) FROM days WHERE symbol=?', (sym,))
     length = max(db.c.fetchone()[0]-in_len-f_len,0)
 
+
     totalsamp = in_len + f_len
 
     available = length - totalsamp + 1
+
+    if not incl_len:
+        incl_len = available
 
     if available < 1:
         print('Only {} datapoints for {} of needed {}.'.format(
@@ -246,9 +251,9 @@ def return_single(database_path = 'stockdata.sqlite', sym=None, step=1,
         ))
         return output
 
-    indexes = list(range(len(available)))
+    indexes = list(range(available))
 
-    indexes = [::step]
+    indexes = indexes[-incl_len::step]
 
     for i in indexes:
         output.append(db.sample_point(in_len, f_len, sym, i))

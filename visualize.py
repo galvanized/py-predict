@@ -5,6 +5,7 @@ from stocks import Database
 from analysis import *
 import numpy as np
 from matplotlib.ticker import ScalarFormatter, FormatStrFormatter
+import dataset_gen
 
 def rgba(hexc, a=1):
     '''
@@ -201,8 +202,67 @@ def html_deviance_report(outfile='report.html', ranges=[7,30,90,365], input_leng
     with open(outfile, 'w') as of:
         of.write(htmlout)
 
+def plot_error(sym,incl_len=None, step=1, in_len = 100, f_len = 10):
+    print('Getting data for {}.'.format(sym))
+    d = dataset_gen.return_single(sym, incl_len=incl_len, step=step,
+                                  in_len = in_len, f_len = f_len)
+
+    print('Reshaping.')
+    xs = []
+    ys = []
+    for pt in d:
+        xs.append(pt[0][0])
+        ys.append(pt[1][0])
+
+    print('Reconstructing.')
+    # build the true graph from each normalized section
+    reconstructed = [1]
+    for x in xs:
+        coeff = reconstructed[-1]/x[0]
+        addtl = x[1:1+step]
+        for a in addtl:
+            if a is not 0:
+                reconstructed.append(a*coeff)
+            else:
+                reconstructed.append(reconstructed[-1])
+
+    plt.close()
+    plt.figure(1, figsize=(10,7))
+    plt.subplot(211)
+    plt.title(sym)
+    plt.yscale('linear')
+    plt.grid(True)
+    plt.grid(b=True, which='minor', color=(0.9,0.9,0.9,1), linestyle='--')
+
+    for xi in range(len(xs)):
+        if xi%5==0:
+            #plt.plot([1]*step*xi+xs[xi])
+            print(xs[xi])
+
+    '''for yi in range(len(ys)):
+        index = step*(yi+in_len)
+        pts = ys[yi]
+        newpts = []
+        for p in pts:
+            newpts.append(p-5)
+        plt.plot([1]*index+newpts)'''
+
+    plt.plot(reconstructed)
+
+    plt.show()
+
+
+    print(reconstructed)
+
+
+
+
+
+
+
 
 if __name__ == '__main__':
+    '''
     own=['MSFT','NKE','BAC','ABBV','RF','BLUE','BGNE','FOLD','EC','CBOE','ATVI']
     watch=['FB','BABA','BAC','VKTX','NRZ','PSB','GAIN','WRD','NEWT','RGA','AET',
            'SHOP','TRU','ALGN','BLKB','CCMP','FIZZ','GDI','GMED','INGN','IPGP',
@@ -210,3 +270,5 @@ if __name__ == '__main__':
     combo = own+watch
     combo.sort()
     html_deviance_report(outfile='watch.htm',ranges=[30,90],syms=combo)
+    '''
+    plot_error('GOOG',300,10,10,5)
