@@ -234,7 +234,7 @@ def plot_error(sym, incl_len=None, step=1, in_len = 100, f_len = 10):
     xs = np.array(xs)
     print(xs[0])
     print(xs.shape)
-    p0, p1, p2, p3 = nuclearninja.model(xs,
+    p0, p1, p2, p3, c = nuclearninja.model(xs,
                                         load_existing='models/'+nuclearninja.version_name()+'.best.hd5',
                                         predict=True, skip_train=True)
 
@@ -258,6 +258,10 @@ def plot_error(sym, incl_len=None, step=1, in_len = 100, f_len = 10):
         plt.plot([1]*index+newpts)'''
 
     for i, p in enumerate(p0):
+        #plt.plot(range(i*step-in_len,i*step),p[:in_len])
+        plt.plot(range(i*step,i*step+f_len),p[-f_len:])
+
+    for i, p in enumerate(c):
         #plt.plot(range(i*step-in_len,i*step),p[:in_len])
         plt.plot(range(i*step,i*step+f_len),p[-f_len:])
 

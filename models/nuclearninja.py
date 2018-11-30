@@ -16,7 +16,7 @@ NuclearNinja
 
 '''
 def version_name():
-    return 'NuclearNinjaV2'
+    return 'NuclearNinjaV3'
 
 
 import os, sys, inspect
@@ -41,19 +41,22 @@ from hyperas.distributions import choice, uniform
 
 import os.path
 
+baseline = 1 # loss when certainty = 0
+
 #https://datascience.stackexchange.com/questions/25029/custom-loss-function-with-additional-parameter-in-keras
 def penalized_loss(noise):
     def loss(y_true, y_pred):
         return K.mean(K.square(y_pred - y_true) - K.abs(y_true - noise), axis=-1)
     return loss
 
-def lin_sq_avg(a,b,lin,quad,pred_err=None,pred_lin=1,pred_quad=0):
+def lin_sq_avg(a,b,c,lin,quad,pred_err=None,pred_lin=1,pred_quad=0):
     '''
     Linear, Square, Average utility function for error
 
     Args:
         a: first value (order unimportant)
         b: second value (order unimportant)
+        c: certainty, [0,1]
         lin: linear coefficient
         quad: quadratic coefficient
         pred_err: predicted magnitude of linear error
@@ -61,29 +64,31 @@ def lin_sq_avg(a,b,lin,quad,pred_err=None,pred_lin=1,pred_quad=0):
     Returns:
         Linear-Quadratic hybrid loss value
     '''
-    lin_e = K.abs(a-b)
+    lin_e = baseline*(1-c)+abs(a-b)*c #baseline*(1-c)+(abs(a-b)-1/abs(a-b))*c
     quad_e = K.square(lin_e)
     sum_e = K.mean(lin_e*lin + quad_e*quad)
 
     if pred_err is not None:
         pred_err_e = K.abs(K.mean(lin_e) - pred_err)
         pred_sq_e = K.square(pred_err_e)
-        sum_e += K.mean(pred_err_e*pred_lin + pred_sq_e*pred_quad)
+        sum_e += K.mean(pred_err_e*pred_lin) + K.sqrt(K.mean(pred_sq_e*pred_quad))
 
 
     return sum_e
 
-def predicted_error_loss(full_pred_err, forecast_pred_err, endpoint_pred_err):
+def predicted_error_loss(full_pred_err, forecast_pred_err, endpoint_pred_err,
+                         certainties):
     def loss(y_true, y_pred):
+        c = certainties
         # normal loss
-        err_norm = lin_sq_avg(y_pred, y_true, 0, 4, full_pred_err, 0, 0.5)
+        err_norm = lin_sq_avg(y_pred, y_true, c, 0, 4, full_pred_err, 0, 0.5)
 
         # forecast loss
-        err_forecast = lin_sq_avg(y_pred[-20:], y_true[-20:], 0, 1,
+        err_forecast = lin_sq_avg(y_pred[-20:], y_true[-20:], c[-20:], 0, 5,
                                   forecast_pred_err, 0, .25)
 
         # endpoint loss
-        err_endpoint = lin_sq_avg(y_pred[-1], y_true[-1], 0.5, 5,
+        err_endpoint = lin_sq_avg(y_pred[-1], y_true[-1], c[-1], 0.5, 10,
                                   endpoint_pred_err, 0, 3)
 
         return err_norm + err_forecast + err_endpoint
@@ -237,9 +242,6 @@ def model(x_train, y_train=None, x_test=None, y_test=None, x_val=None, y_val=Non
     codelayer = Concatenate()([densecode, Flatten()(convcode0), Flatten()(convcode1)])
 
 
-
-
-
     # --- begin up ----
 
     do4 = Dropout(0.25)(codelayer)
@@ -261,6 +263,7 @@ def model(x_train, y_train=None, x_test=None, y_test=None, x_val=None, y_val=Non
     o0act = 'linear'
 
     out0 = Dense(np.prod(y_shape), activation=o0act)(last_layer)
+    cert = Dense(np.prod(y_shape), activation='tanh')(last_layer)
 
     oerract = 'linear'
 
@@ -269,18 +272,13 @@ def model(x_train, y_train=None, x_test=None, y_test=None, x_val=None, y_val=Non
     o3 = Dense(1, activation=oerract, name='o3')(last_layer)
 
     o0 = Reshape(target_shape=y_shape, name='autoencoder_output1')(out0)
+    certout = Reshape(target_shape=y_shape, name='autoencoder_cert')(cert)
 
-    model = Model(inputs=i0, outputs=[o0,o1,o2,o3])
+    model = Model(inputs=i0, outputs=[o0,o1,o2,o3,certout])
 
-    model.compile(loss=predicted_error_loss(o1,o2,o3),
+    model.compile(loss=predicted_error_loss(o1,o2,o3,certout),
                   optimizer='adadelta',
-                  metrics=['mse',linear_err,
-                           get_pred_err(o1),
-                           get_pred_err_loss(o1, 1),
-                           get_pred_err(o2),
-                           get_pred_err_loss(o2, 2),
-                           get_pred_err(o3),
-                           get_pred_err_loss(o1, 3)])
+                  metrics=['mse',linear_err])
 
     tb_callback = keras.callbacks.TensorBoard(log_dir='/tmp/sp-tb', write_graph=False)
     nan_callback = keras.callbacks.TerminateOnNaN()
@@ -295,9 +293,9 @@ def model(x_train, y_train=None, x_test=None, y_test=None, x_val=None, y_val=Non
 
         print('FITTING')
 
-        model.fit([x_train], [y_train,yfill_train,yfill_train,yfill_train], epochs=1000,
+        model.fit([x_train], [y_train,yfill_train,yfill_train,yfill_train,yfill_train], epochs=1000,
             callbacks = [tb_callback, nan_callback, checkpoint_callback],
-            validation_data = (x_test, [y_test,yfill_test,yfill_test,yfill_test]))
+            validation_data = (x_test, [y_test,yfill_test,yfill_test,yfill_test,yfill_test]))
 
         model.save(save_path)
 
@@ -305,16 +303,16 @@ def model(x_train, y_train=None, x_test=None, y_test=None, x_val=None, y_val=Non
 
         print('EVALUATING')
 
-        score = model.evaluate(x_test, [y_test,yfill_test,yfill_test,yfill_test])
+        score = model.evaluate(x_test, [y_test,yfill_test,yfill_test,yfill_test,yfill_test])
         loss = score[0]
 
         print('Test losses:', score)
         model.load_weights(best_path)
 
-        print('Best losses:', model.evaluate(x_test, [y_test,yfill_test,yfill_test,yfill_test]))
+        print('Best losses:', model.evaluate(x_test, [y_test,yfill_test,yfill_test,yfill_test,yfill_test]))
 
         if x_val is not None and y_val is not None:
-            print('Best validation:', model.evaluate(x_val, [y_val,yfill_val,yfill_val,yfill_val]))
+            print('Best validation:', model.evaluate(x_val, [y_val,yfill_val,yfill_val,yfill_val,yfill_val]))
 
 
     if load_recent:
@@ -331,12 +329,12 @@ def model(x_train, y_train=None, x_test=None, y_test=None, x_val=None, y_val=Non
 
     if predict:
         print('Predicting...')
-        p0, p1, p2, p3 = model.predict(x_train)
-        return [p0, p1, p2, p3]
+        p0, p1, p2, p3, c = model.predict(x_train)
+        return [p0, p1, p2, p3, c]
 
 
 if __name__ == '__main__':
-    mode = 'continue'
+    mode = 'train'
     if mode is 'train':
         model(*data('../10k-300in-20out.npz'))
     if mode is 'evaluate':
